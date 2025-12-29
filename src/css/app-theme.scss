@@ -1,0 +1,226 @@
+﻿// src/css/app-theme.scss
+// Shared layout primitives inspired by the Contas a Receber page.
+
+.app-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 24px 24px 32px;
+  background: linear-gradient(160deg, #f7f6f3 0%, #ede9df 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-page__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.7;
+}
+
+.app-page__wrapper {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.app-page__grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.mobile-toggle {
+  display: flex;
+  justify-content: center;
+}
+
+.mobile-toggle__buttons {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 999px;
+}
+
+.mobile-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 32px rgba(30, 30, 45, 0.08);
+  backdrop-filter: blur(6px);
+  padding: 20px 22px;
+  position: relative;
+}
+
+.painel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.painel__buscar .q-field__control {
+  background: rgba(247, 247, 247, 0.9);
+  border-radius: 14px;
+}
+
+.painel__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filtro-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  background: #f1f1f1;
+  color: #6a6a6a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filtro-btn--active {
+  background: #ffd54f;
+  color: #3b2f00;
+  box-shadow: 0 6px 16px rgba(191, 139, 0, 0.3);
+}
+
+.painel__lista {
+  flex: 1;
+  margin-top: 12px;
+  min-height: 0;
+  position: relative;
+}
+
+.painel__scroll {
+  height: 100%;
+}
+
+.painel__vazio {
+  padding: 32px 0;
+  text-align: center;
+  color: #9e9e9e;
+}
+
+.painel__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.painel__cliente {
+  font-size: 22px;
+  font-weight: 700;
+  color: #373743;
+}
+
+.painel__saldo {
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+.painel__registrar {
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 10px 18px;
+  background: linear-gradient(115deg, #ffca28, #ffb300);
+  color: #3b2500;
+}
+
+.painel__tabs {
+  display: flex;
+  gap: 12px;
+  margin: 22px 0 12px;
+}
+
+.aba-btn {
+  border: none;
+  background: #f3f3f4;
+  color: #6a6a7b;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.aba-btn--ativa {
+  background: #ffd54f;
+  color: #3b2f00;
+  box-shadow: 0 6px 16px rgba(191, 139, 0, 0.32);
+}
+
+.painel__conteudo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.painel__placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #707078;
+  padding: 48px 16px;
+}
+
+@media (max-width: 1023px) {
+  .app-page {
+    padding: 16px;
+  }
+
+  .app-page__wrapper {
+    gap: 12px;
+  }
+
+  .mobile-toggle {
+    padding: 0 8px;
+  }
+
+  .mobile-panel {
+    display: flex;
+    width: 100%;
+  }
+
+  .painel {
+    padding: 18px 18px 20px;
+    height: auto;
+  }
+}
+
+@media (max-width: 599px) {
+  .mobile-panel {
+    width: 100%;
+  }
+
+  .painel__topo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .painel__tabs {
+    flex-wrap: wrap;
+  }
+}
