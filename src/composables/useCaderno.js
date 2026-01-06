@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { date as qDate } from 'quasar'
 import * as caderno from 'src/services/cadernoService'
+import { marcarVendaPaga, marcarVendaNaoPaga, marcarVendaNaoInformada } from 'src/services/contasService'
 
 const carregouDia = ref(false)
 const carregandoDia = ref(false)
@@ -52,20 +53,22 @@ export function useCaderno(externalDateRef) {
     cliente_id,
     nome_cliente_avulso,
     nome_funcionario_empresa,
+    status_pagamento,
     pago,
     forma_pagamento,
     itens,
+    data_transacao,
     observacoes,
   }) {
-    const status_pagamento = pago ? 'PAGO' : 'PENDENTE'
-    const data_transacao = buildDataTransacaoISO(dataISO.value)
+    const statusFinal = status_pagamento || (pago ? 'PAGO' : 'PENDENTE')
+    const dataFinal = data_transacao || buildDataTransacaoISO(dataISO.value)
     const t = await caderno.criarTransacaoComItens({
       cliente_id,
       nome_cliente_avulso,
       nome_funcionario_empresa: nome_funcionario_empresa || null,
-      forma_pagamento: pago ? (forma_pagamento ?? null) : null,
-      status_pagamento,
-      data_transacao,
+      forma_pagamento: statusFinal === 'PAGO' ? (forma_pagamento ?? null) : null,
+      status_pagamento: statusFinal,
+      data_transacao: dataFinal,
       itens,
       observacoes,
     })
@@ -86,15 +89,16 @@ export function useCaderno(externalDateRef) {
   async function atualizarTransacaoExistente(transacaoAlvo, payload) {
     if (!transacaoAlvo?.id) throw new Error('Transacao invalida')
     const itensOriginais = itensPorTransacao.value[transacaoAlvo.id] || []
-    const status_pagamento = payload.pago ? 'PAGO' : 'PENDENTE'
+    const statusFinal = payload.status_pagamento || (payload.pago ? 'PAGO' : 'PENDENTE')
     const atualizada = await caderno.atualizarTransacaoComItens(
       transacaoAlvo.id,
       {
         cliente_id: payload.cliente_id,
         nome_cliente_avulso: payload.nome_cliente_avulso,
         nome_funcionario_empresa: payload.nome_funcionario_empresa,
-        forma_pagamento: payload.forma_pagamento,
-        status_pagamento,
+        data_transacao: payload.data_transacao,
+        forma_pagamento: statusFinal === 'PAGO' ? payload.forma_pagamento : null,
+        status_pagamento: statusFinal,
         itens: payload.itens,
         observacoes: payload.observacoes,
       },
@@ -137,32 +141,45 @@ export function useCaderno(externalDateRef) {
   }
 
   // --- toggles
-  async function togglePago(transacao) {
+  async function togglePago(transacao, statusDestino = null) {
     if (!transacao) return
     if (!transacao.cliente_id) return
-    const indoParaPago = transacao.status_pagamento !== 'PAGO'
+    const statusAtual = transacao.status_pagamento
+    const statusFinal = statusDestino || proximoStatusPagamento(statusAtual)
+    if (!statusFinal || statusFinal === statusAtual) return
+    const indoParaPago = statusFinal === 'PAGO'
     const statusAnterior = transacao.status_pagamento
     const formaAnterior = transacao.forma_pagamento
     const uiAnterior = transacao._uiPago
 
-    transacao.status_pagamento = indoParaPago ? 'PAGO' : 'PENDENTE'
+    transacao.status_pagamento = statusFinal
     transacao.forma_pagamento = indoParaPago ? (formaAnterior ?? null) : null
     transacao._uiPago = transacao.status_pagamento === 'PAGO'
 
     try {
-      const atualizado = indoParaPago
-        ? await caderno.marcarPago(transacao.id, transacao.forma_pagamento ?? null)
-        : await caderno.marcarNaoPago(transacao.id)
-      const normalizado = normalizeTransacao(atualizado)
-      transacao.status_pagamento = normalizado.status_pagamento
-      transacao.forma_pagamento = normalizado.forma_pagamento
-      transacao._uiPago = normalizado._uiPago
+      if (statusFinal === 'PAGO') {
+        await marcarVendaPaga(transacao.id, transacao.forma_pagamento ?? null)
+      } else if (statusFinal === 'PENDENTE') {
+        await marcarVendaNaoPaga(transacao.id)
+      } else if (statusFinal === 'NAO_INFORMADO') {
+        await marcarVendaNaoInformada(transacao.id)
+      }
+      transacao.status_pagamento = statusFinal
+      transacao.forma_pagamento = indoParaPago ? (formaAnterior ?? null) : null
+      transacao._uiPago = transacao.status_pagamento === 'PAGO'
     } catch (error) {
       transacao.status_pagamento = statusAnterior
       transacao.forma_pagamento = formaAnterior
       transacao._uiPago = uiAnterior ?? (statusAnterior === 'PAGO')
       throw error
     }
+  }
+
+  function proximoStatusPagamento(statusAtual) {
+    if (statusAtual === 'NAO_INFORMADO') return 'PENDENTE'
+    if (statusAtual === 'PENDENTE') return 'PAGO'
+    if (statusAtual === 'PAGO') return 'NAO_INFORMADO'
+    return 'NAO_INFORMADO'
   }
 
   async function togglePronto(transacao, novoValor) {

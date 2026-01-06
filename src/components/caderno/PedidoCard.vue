@@ -10,7 +10,7 @@
         </div>
         <div class="text-caption q-mt-xs ellipsis-2-lines">{{ resumo }}</div>
         <div v-if="transacao.nome_funcionario_empresa" class="pedido-card__func">
-          Funcionário: {{ transacao.nome_funcionario_empresa }}
+          Funcion&aacute;rio: {{ transacao.nome_funcionario_empresa }}
         </div>
       </div>
     </q-card-section>
@@ -76,12 +76,15 @@ const preparoChipClass = computed(() => {
 
 const pagamentoChipLabel = computed(() => {
   if (isCancelada.value) return 'Cancelado'
-  if (props.transacao.status_pagamento !== 'PAGO') return 'Nao Pago'
+  const status = props.transacao.status_pagamento
+  if (status === 'NAO_INFORMADO') return 'N\u00e3o informado'
+  if (status === 'PARCIAL') return 'Parcial'
+  if (status !== 'PAGO') return 'N\u00e3o pago'
   const map = {
     DINHEIRO: 'Dinheiro',
     PIX: 'Pix',
-    DEBITO: 'Debito',
-    CREDITO: 'Credito',
+    DEBITO: 'D\u00e9bito',
+    CREDITO: 'Cr\u00e9dito',
     OUTRO: 'Outro',
   }
   const forma = map[props.transacao.forma_pagamento] || null
@@ -90,13 +93,15 @@ const pagamentoChipLabel = computed(() => {
 
 const pagamentoChipClass = computed(() => {
   if (isCancelada.value) return 'status-chip--cancelado'
-  return props.transacao.status_pagamento === 'PAGO'
-    ? 'status-chip--pago'
-    : 'status-chip--nao-pago'
+  const status = props.transacao.status_pagamento
+  if (status === 'PAGO') return 'status-chip--pago'
+  if (status === 'PARCIAL') return 'status-chip--parcial'
+  if (status === 'NAO_INFORMADO') return 'status-chip--nao-informado'
+  return 'status-chip--nao-pago'
 })
 
 const pagamentoChipDisabled = computed(
-  () => isCancelada.value || !props.transacao.cliente_id,
+  () => isCancelada.value || !props.transacao.cliente_id || props.transacao.status_pagamento === 'PARCIAL'
 )
 
 function onTogglePronto() {
@@ -115,23 +120,21 @@ const statusClass = computed(() => {
 })
 </script>
 
-
 <style scoped>
 .pedido-card {
-  --pedido-yellow: #ffd54f;
-  --pedido-yellow-strong: #f4b336;
-  --pedido-text-strong: #3b2f00;
-  --pedido-text-muted: rgba(59, 47, 0, 0.6);
+  --pedido-yellow: var(--brand-primary);
+  --pedido-yellow-strong: var(--brand-primary);
+  --pedido-text-strong: var(--brand-text-strong);
+  --pedido-text-muted: var(--brand-text-muted);
   position: relative;
   overflow: hidden;
   border-radius: 18px;
-  border: 1px solid rgba(255, 213, 79, 0.22);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 16px 32px rgba(32, 25, 10, 0.1);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
   cursor: pointer;
 }
-
 .status-strip {
   position: absolute;
   left: 0;
@@ -187,8 +190,9 @@ const statusClass = computed(() => {
 }
 
 .status-chip--pendente,
-.status-chip--nao-pago {
-  background: rgba(255, 213, 79, 0.22);
+.status-chip--nao-pago,
+.status-chip--parcial {
+  background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
   color: var(--pedido-text-strong);
 }
 
@@ -201,6 +205,11 @@ const statusClass = computed(() => {
 .status-chip--cancelado {
   background: rgba(176, 190, 197, 0.28);
   color: #455a64;
+}
+
+.status-chip--nao-informado {
+  background: rgba(148, 163, 184, 0.25);
+  color: #475569;
 }
 
 .q-btn {

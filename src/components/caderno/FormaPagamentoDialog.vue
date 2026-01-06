@@ -1,4 +1,4 @@
-Ôªø<template>
+<template>
   <q-dialog
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -8,7 +8,7 @@
       <div class="dialog-card__header">
         <div>
           <div class="dialog-card__title">Forma de pagamento</div>
-          <div class="dialog-card__subtitle">Selecione como o pedido ser√° registrado.</div>
+          <div class="dialog-card__subtitle">Selecione como o pedido ser· registrado.</div>
         </div>
         <q-btn flat round dense icon="close" @click="fechar" />
       </div>
@@ -18,7 +18,7 @@
           v-model="local"
           :options="opts"
           type="radio"
-          color="warning"
+          color="primary"
           class="dialog-card__options"
         />
       </div>
@@ -28,7 +28,7 @@
         <q-btn
           unelevated
           class="dialog-card__btn-salvar"
-          color="warning"
+          color="primary"
           label="Salvar"
           :disable="!local"
           @click="salvar"
@@ -53,8 +53,8 @@ const local = ref(null)
 const opts = [
   { label: 'Dinheiro', value: 'DINHEIRO' },
   { label: 'Pix', value: 'PIX' },
-  { label: 'D√©bito', value: 'DEBITO' },
-  { label: 'Cr√©dito', value: 'CREDITO' },
+  { label: 'DÈbito', value: 'DEBITO' },
+  { label: 'CrÈdito', value: 'CREDITO' },
   { label: 'Outro', value: 'OUTRO' },
 ]
 
@@ -95,7 +95,7 @@ function salvar() {
 .dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3a3425;
+  color: var(--brand-text-strong);
 }
 
 .dialog-card__subtitle {
@@ -128,7 +128,7 @@ function salvar() {
 }
 
 .dialog-card__options :deep(.q-radio__inner--truthy) {
-  color: #ffb300;
+  color: var(--brand-primary);
 }
 
 .dialog-card__options :deep(.q-radio:hover) {
@@ -152,7 +152,7 @@ function salvar() {
   font-weight: 700;
   padding: 10px 18px;
   border-radius: 14px;
-  background: linear-gradient(115deg, #ffca28, #ffb300);
+  background: linear-gradient(115deg, var(--brand-primary), var(--brand-primary));
   color: #3b2500;
 }
 

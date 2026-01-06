@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-dialog v-model="internalModel" :maximized="$q.screen.lt.md">
     <q-card class="senha-dialog-card">
       <div class="senha-dialog-card__header">
@@ -95,10 +95,11 @@ function cancelar() {
 .senha-dialog-card {
   width: 420px;
   max-width: 90vw;
-  border-radius: 24px;
-  padding: 24px 28px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff8d6 100%);
-  box-shadow: 0 24px 48px rgba(32, 25, 10, 0.16);
+  border-radius: 18px;
+  padding: 22px 24px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  box-shadow: none;
 }
 
 .senha-dialog-card__header {
@@ -110,11 +111,11 @@ function cancelar() {
 .senha-dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3b2f00;
+  color: var(--brand-text-strong);
 }
 
 .senha-dialog-card__subtitle {
-  color: rgba(59, 47, 0, 0.58);
+  color: var(--brand-text-muted);
   font-size: 13px;
 }
 
@@ -130,15 +131,13 @@ function cancelar() {
 }
 
 .senha-dialog-card__btn-cancelar {
-  color: rgba(59, 47, 0, 0.58);
+  color: var(--brand-text-muted);
   font-weight: 600;
 }
 
 .senha-dialog-card__btn-confirmar {
   font-weight: 700;
   padding: 10px 18px;
-  border-radius: 14px;
-  background: linear-gradient(115deg, var(--caderno-yellow), var(--caderno-yellow-strong));
-  color: #3b2f00;
+  border-radius: 12px;
 }
 </style>

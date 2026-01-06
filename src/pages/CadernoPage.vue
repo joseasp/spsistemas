@@ -1,15 +1,15 @@
-﻿<template>
+<template>
   <q-page class="app-page caderno-page">
     <div class="app-page__bg caderno-page__bg" />
     <div class="app-page__wrapper caderno-page__wrapper">
-      <div v-if="isMobile" class="mobile-toggle">
+      <div v-if="usarToggle" class="mobile-toggle">
         <q-btn-toggle
           v-model="mobileSection"
           :options="mobileToggleOptions"
           spread
           rounded
           unelevated
-          toggle-color="warning"
+          toggle-color="primary"
           color="white"
           text-color="grey-7"
           class="mobile-toggle__buttons"
@@ -18,8 +18,8 @@
       <div class="row q-col-gutter-xl app-page__grid caderno-page__grid">
         <div
           class="col-12 col-lg-7 caderno-page__board-col"
-          :class="{ 'mobile-panel': isMobile }"
-          v-show="!isMobile || mobileSection === 'board'"
+          :class="{ 'mobile-panel': usarToggle }"
+          v-show="!usarToggle || mobileSection === 'board'"
         >
           <section class="painel caderno-board">
             <header class="painel__topo caderno-board__topo">
@@ -55,7 +55,7 @@
                   outlined
                   clearable
                   clear-icon="close"
-                  placeholder="Buscar por nome (cliente/avulso/funcionário)"
+                  placeholder="Buscar por nome (cliente/avulso/funcion&aacute;rio)"
                   aria-label="Buscar pedidos por nome"
                 >
                   <template #prepend>
@@ -68,7 +68,7 @@
 
             <div class="painel__conteudo caderno-board__conteudo">
               <q-inner-loading :showing="loadingCaderno" class="caderno-board__loading">
-                <q-spinner-dots color="warning" size="40px" />
+                <q-spinner-dots color="primary" size="40px" />
               </q-inner-loading>
 
               <q-scroll-area class="painel__scroll caderno-board__scroll">
@@ -149,8 +149,8 @@
         </div>
         <div
           class="col-12 col-lg-5 caderno-page__form-col"
-          :class="{ 'mobile-panel': isMobile }"
-          v-show="!isMobile || mobileSection === 'form'"
+          :class="{ 'mobile-panel': usarToggle }"
+          v-show="!usarToggle || mobileSection === 'form'"
         >
           <section class="painel caderno-form">
             <div class="painel__conteudo">
@@ -194,7 +194,7 @@
       <q-card style="min-width: 320px">
         <q-card-section class="text-subtitle1">Caixa fechado</q-card-section>
         <q-card-section>
-          O pedido foi salvo, mas o caixa deste dia está fechado. Deseja reabri-lo para incluir este valor?
+          O pedido foi salvo, mas o caixa deste dia est&aacute; fechado. Deseja reabri-lo para incluir este valor?
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Depois" @click="dialogReabrirAviso.aberto = false" />
@@ -227,7 +227,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-<!-- Calend??rio -->
+    <!-- Calendario -->
     <q-dialog v-model="mostrarCalendario" persistent :maximized="$q.screen.lt.sm">
       <q-card class="caderno-date-card">
         <QDate
@@ -273,6 +273,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, onActivated, watch
 import { useQuasar, date as qDate, QDate, uid } from 'quasar'
 import { storeToRefs } from 'pinia'
 import { useMainStore } from 'src/stores/main-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { useCaderno } from 'src/composables/useCaderno'
 import { useCaixa } from 'src/composables/useCaixa'
 import NovoPedidoForm from 'src/components/caderno/NovoPedidoForm.vue'
@@ -286,12 +287,31 @@ import SenhaDialog from 'src/components/shared/SenhaDialog.vue'
 import { printTransacao } from 'src/utils/print'
 const $q = useQuasar()
 const detalhePedidoDialog = ref(null)
+const authStore = useAuthStore()
+const { empresaConfig } = storeToRefs(authStore)
 const isMobile = computed(() => $q.screen.lt.md)
+const isLojaLayout = computed(() => (empresaConfig.value?.pdv_layout || 'RESTAURANTE') === 'LOJA')
+const usarToggle = computed(() => isMobile.value || isLojaLayout.value)
 const mobileSection = ref('board')
 const mobileToggleOptions = [
   { label: 'Pedidos do dia', value: 'board' },
   { label: 'Novo pedido', value: 'form' },
 ]
+
+const togglePagoCooldown = ref(false)
+const TOGGLE_PAGO_COOLDOWN_MS = 700
+let togglePagoCooldownTimer = null
+
+function iniciarCooldownTogglePago() {
+  togglePagoCooldown.value = true
+  if (togglePagoCooldownTimer) {
+    clearTimeout(togglePagoCooldownTimer)
+  }
+  togglePagoCooldownTimer = setTimeout(() => {
+    togglePagoCooldown.value = false
+    togglePagoCooldownTimer = null
+  }, TOGGLE_PAGO_COOLDOWN_MS)
+}
 const store = useMainStore()
 const {
   clientes,
@@ -366,11 +386,15 @@ const prontos = computed(() => filtrarPorBusca(prontosOriginais.value || []))
 const cancelados = computed(() => filtrarPorBusca(canceladosOriginais.value || []))
 const draftPedido = ref(null)
 const transacaoEmEdicao = ref(null)
-watch(isMobile, (novo) => {
+watch(usarToggle, (novo) => {
   if (!novo) {
     mobileSection.value = 'board'
+    return
   }
-})
+  if (isLojaLayout.value) {
+    mobileSection.value = 'form'
+  }
+}, { immediate: true })
 const recarregar = () => carregarDoDia(true)
 const SENHA_ADMIN = import.meta.env.VITE_ADMIN_PIN || '1234'
 const senhaDialog = reactive({
@@ -386,6 +410,7 @@ const senhaDialog = reactive({
 })
 const dialogAbrir = reactive({ aberto: false })
 const dialogFechar = reactive({ aberto: false })
+const dialogForma = reactive({ aberto: false, transacao: null, forma: null })
 const dialogReabrirAviso = reactive({ aberto: false })
 const dialogReabrirDados = reactive({ aberto: false, responsavel: '', valor: 0 })
 const carregandoFechamento = ref(false)
@@ -479,13 +504,13 @@ async function prepararFechamentoCaixa({ visualizar = false } = {}) {
     dialogFechar.aberto = true
   } catch (error) {
     console.error('Falha ao preparar fechamento', error)
-    $q.notify({ type: 'negative', message: 'Não foi possível carregar dados do caixa.' })
+    $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel carregar dados do caixa.' })
   }
 }
 
 async function aoConfirmarAbertura({ responsavel, valorAbertura }) {
   if (!responsavel) {
-    $q.notify({ type: 'warning', message: 'Informe o responsável pela abertura.' })
+    $q.notify({ type: 'warning', message: 'Informe o respons\u00e1vel pela abertura.' })
     return
   }
   try {
@@ -494,13 +519,13 @@ async function aoConfirmarAbertura({ responsavel, valorAbertura }) {
     await recarregarCaixa()
   } catch (error) {
     console.error('Falha ao abrir caixa', error)
-    $q.notify({ type: 'negative', message: 'Não foi possível abrir o caixa.' })
+    $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel abrir o caixa.' })
   }
 }
 
 async function aoConfirmarFechamento({ responsavel, contadoPorForma, observacoes }) {
   if (!responsavel) {
-    $q.notify({ type: 'warning', message: 'Informe o responsável pelo fechamento.' })
+    $q.notify({ type: 'warning', message: 'Informe o respons\u00e1vel pelo fechamento.' })
     dialogFechar.aberto = true
     return
   }
@@ -517,11 +542,11 @@ async function aoConfirmarFechamento({ responsavel, contadoPorForma, observacoes
   } catch (error) {
     if (error?.code === 'FORMA_PENDENTE' || error?.code === 'VENDA_PAGA_SEM_FORMA') {
       await recarregarCaixa()
-      $q.notify({ type: 'warning', message: error.message || 'Resolva as pendências para fechar o caixa.' })
+      $q.notify({ type: 'warning', message: error.message || 'Resolva as pend\u00eancias para fechar o caixa.' })
       dialogFechar.aberto = true
     } else {
       console.error('Falha ao fechar caixa', error)
-      $q.notify({ type: 'negative', message: 'Não foi possível fechar o caixa.' })
+      $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel fechar o caixa.' })
     }
   } finally {
     carregandoFechamento.value = false
@@ -558,7 +583,7 @@ function aoSolicitarReaberturaResumo() {
 
 async function confirmarReaberturaCaixa() {
   if (!dialogReabrirDados.responsavel) {
-    $q.notify({ type: 'warning', message: 'Informe quem está reabrindo o caixa.' })
+    $q.notify({ type: 'warning', message: 'Informe quem est\u00e1 reabrindo o caixa.' })
     return
   }
   try {
@@ -570,7 +595,7 @@ async function confirmarReaberturaCaixa() {
     await recarregarCaixa()
   } catch (error) {
     console.error('Falha ao reabrir caixa', error)
-    $q.notify({ type: 'negative', message: 'Não foi possível reabrir o caixa.' })
+    $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel reabrir o caixa.' })
   }
 }
 onMounted(() => {
@@ -613,7 +638,7 @@ async function confirmarPedido(payload) {
       transacaoEmEdicao.value = null
       draftPedido.value = null
       detalhePedidoDialog.value?.fechar?.()
-      if (isMobile.value) {
+      if (usarToggle.value) {
         mobileSection.value = 'board'
       }
       $q.notify({ type: 'positive', message: 'Pedido atualizado.' })
@@ -636,6 +661,198 @@ async function confirmarPedido(payload) {
     $q.notify({ type: 'negative', message: 'Nao foi possivel salvar o pedido.' })
   }
 }
+
+function onTogglePronto(t) {
+  togglePronto(t, !t.pronto)
+}
+async function ensureItensCarregados(transacao) {
+  if (!transacao) return []
+  if (!itensPorTransacao.value[transacao.id]) {
+    await carregarItens(transacao.id)
+  }
+  return itensPorTransacao.value[transacao.id] || []
+}
+async function imprimir(transacao) {
+  if (!transacao) return
+  try {
+    const itens = await ensureItensCarregados(transacao)
+    await printTransacao(transacao, itens, {
+      title: "Pedido",
+      clienteStr: nomeDoCliente(transacao),
+      nomeFormaPagamento,
+    })
+    $q.notify({ type: "positive", message: "Pedido enviado para impressao." })
+  } catch (error) {
+    console.error("Falha ao imprimir pedido", error)
+    $q.notify({ type: "negative", message: "Nao foi possivel imprimir o pedido." })
+  }
+}
+async function editar(transacao) {
+  if (!transacao) return
+  try {
+    const itens = await ensureItensCarregados(transacao)
+    transacaoEmEdicao.value = transacao
+    draftPedido.value = {
+      cliente_id: transacao.cliente_id || null,
+      nome_cliente_avulso: transacao.nome_cliente_avulso || null,
+      nome_funcionario_empresa: transacao.nome_funcionario_empresa || "",
+      itens: itens.map((it) => ({
+        _uid: uid(),
+        produto_id: it.produto_id || null,
+        nome_produto_congelado: it.nome_produto_congelado || "Produto",
+        preco_unitario_congelado: Number(it.preco_unitario_congelado || 0),
+        quantidade: Number(it.quantidade || 1),
+      })),
+      status_pagamento: transacao.status_pagamento || "NAO_INFORMADO",
+      forma_pagamento: transacao.forma_pagamento || null,
+      data_transacao: transacao.data_transacao || transacao.created_at || null,
+      observacoes: transacao.observacoes || "",
+    }
+    detalhePedidoDialog.value?.fechar?.()
+    if (usarToggle.value) {
+      mobileSection.value = "form"
+    }
+    $q.notify({ type: "info", message: "Pedido carregado para edicao. Ajuste e salve." })
+  } catch (error) {
+    console.error("Falha ao preparar itens para edicao", error)
+    $q.notify({ type: "negative", message: "Nao foi possivel preparar o pedido para edicao." })
+  }
+}
+
+function cancelarPedido(transacao) {
+  if (!transacao) return
+  $q.dialog({
+    title: "Cancelar pedido",
+    message:
+      "Deseja realmente cancelar este pedido? Ele sera mantido para auditoria, porem nao entrara nas contagens.",
+    cancel: { label: "Voltar" },
+    ok: { label: "Cancelar pedido", color: "negative" },
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await removerTransacao(transacao)
+      if (transacaoEmEdicao.value?.id === transacao.id) {
+        transacaoEmEdicao.value = null
+        draftPedido.value = null
+      }
+      detalhePedidoDialog.value?.fechar?.()
+      $q.notify({ type: "positive", message: "Pedido cancelado com sucesso." })
+    } catch (error) {
+      console.error("Falha ao cancelar pedido", error)
+      $q.notify({ type: "negative", message: "Nao foi possivel cancelar o pedido." })
+    }
+  })
+}
+
+async function excluirPedidoDefinitivo(transacao) {
+  if (!transacao) return
+  const resultado = await solicitarSenhaExclusaoDefinitiva()
+  if (!resultado.autorizado) {
+    if (!resultado.cancelado) {
+      $q.notify({ type: "negative", message: "Senha incorreta. Exclusao cancelada." })
+    }
+    return
+  }
+  try {
+    await excluirTransacaoDefinitiva(transacao)
+    if (transacaoEmEdicao.value?.id === transacao.id) {
+      transacaoEmEdicao.value = null
+      draftPedido.value = null
+    }
+    detalhePedidoDialog.value?.fechar?.()
+    $q.notify({ type: "positive", message: "Pedido excluido definitivamente." })
+  } catch (error) {
+    console.error("Falha ao excluir pedido definitivamente", error)
+    $q.notify({ type: "negative", message: "Nao foi possivel excluir o pedido." })
+  }
+}
+
+function solicitarSenhaExclusaoDefinitiva() {
+  return new Promise((resolve) => {
+    $q.dialog({
+      title: "Excluir pedido definitivamente?",
+      message:
+        "Esta acao nao pode ser desfeita. Digite sua senha de administrador para confirmar.",
+      prompt: {
+        model: "",
+        type: "password",
+        label: "Senha do administrador",
+        filled: true,
+      },
+      ok: { label: "Confirmar", color: "negative", unelevated: true },
+      cancel: { label: "Cancelar" },
+      persistent: true,
+    })
+      .onOk((valor) => {
+        const senha = String(valor || "").trim()
+        resolve({ autorizado: senha === SENHA_ADMIN, cancelado: false })
+      })
+      .onCancel(() => resolve({ autorizado: false, cancelado: true }))
+  })
+}
+function abrirFormaPagamento(transacao) {
+  if (!transacao) return
+  dialogForma.transacao = transacao
+  dialogForma.forma = transacao.forma_pagamento || null
+  dialogForma.aberto = true
+}
+
+async function confirmarForma(forma) {
+  const transacao = dialogForma.transacao
+  dialogForma.aberto = false
+  dialogForma.forma = forma
+  if (!transacao) return
+  try {
+    await setFormaPagamento(transacao, forma)
+    $q.notify({ type: 'positive', message: 'Forma de pagamento atualizada.' })
+    await recarregarCaixa()
+  } catch (error) {
+    console.error('Falha ao atualizar forma de pagamento', error)
+    $q.notify({ type: 'negative', message: 'Nao foi possivel atualizar a forma de pagamento.' })
+  } finally {
+    dialogForma.transacao = null
+  }
+}
+async function abrirDetalhes(t) {
+  if (!detalhePedidoDialog.value) return
+  await carregarItens(t.id)
+  const itens = itensPorTransacao.value[t.id] || []
+  const total = Number(t.valor ?? t.valor_total ?? 0)
+  detalhePedidoDialog.value.abrir({
+    itens,
+    cliente: nomeDoCliente(t),
+    funcionario: t.nome_funcionario_empresa,
+    formaPagamento: nomeFormaPagamento(t.forma_pagamento),
+    status: t.status_pagamento,
+    data: t.data_transacao || t.created_at,
+    observacao: t.observacoes,
+    total,
+    onImprimir: () => imprimir(t),
+    onEditar: t.status_pagamento !== "CANCELADA" ? () => editar(t) : null,
+    onCancelar: t.status_pagamento !== "CANCELADA" ? () => cancelarPedido(t) : null,
+    onExcluir: () => excluirPedidoDefinitivo(t),
+  })
+}
+
+// Totais protegidos
+const totaisVisiveis = ref(false)
+function toggleTotais() {
+  if (totaisVisiveis.value) {
+    totaisVisiveis.value = false
+    return
+  }
+  abrirDialogSenha({
+    contexto: "totais",
+    titulo: "Totais protegidos",
+    mensagem: "Digite a senha para visualizar os valores.",
+    confirmarRotulo: "OK",
+    cancelarRotulo: "Cancelar",
+    corConfirmar: "warning",
+    rotulo: "Senha",
+  })
+}
+// Caixa
+const mostrarCalendario = ref(false)
 // Totais/contagem sem cancelados
 const totalPedidosAtivos = computed(() => pendentes.value.length + prontos.value.length)
 const valorTotalAtivo = computed(() =>
@@ -727,230 +944,51 @@ function nomeFormaPagamento(fp) {
   const map = {
     DINHEIRO: 'Dinheiro',
     PIX: 'Pix',
-    DEBITO: 'DÃ©bito',
-    CREDITO: 'CrÃ©dito',
+    DEBITO: 'D\u00e9bito',
+    CREDITO: 'Cr\u00e9dito',
     OUTRO: 'Outro',
   }
   return map[fp] || null
 }
 // Chips (sem 'val' extra -> some o aviso do ESLint)
-function onTogglePago(t) {
+async function onTogglePago(t) {
+  if (togglePagoCooldown.value) return
   if (!t?.cliente_id) {
-    $q.notify({ type: 'warning', message: 'Cliente avulso Ã© sempre pago.' })
+    $q.notify({ type: 'warning', message: 'Cliente avulso e sempre pago.' })
     return
   }
-  togglePago(t)
-}
-function onTogglePronto(t) {
-  togglePronto(t, !t.pronto)
-}
-async function ensureItensCarregados(transacao) {
-  if (!transacao) return []
-  if (!itensPorTransacao.value[transacao.id]) {
-    await carregarItens(transacao.id)
-  }
-  return itensPorTransacao.value[transacao.id] || []
-}
-async function imprimir(transacao) {
-  if (!transacao) return
-  try {
-    const itens = await ensureItensCarregados(transacao)
-    await printTransacao(transacao, itens, {
-      title: 'Pedido',
-      clienteStr: nomeDoCliente(transacao),
-      nomeFormaPagamento,
-    })
-    $q.notify({ type: 'positive', message: 'Pedido enviado para impressão.' })
-  } catch (error) {
-    console.error('Falha ao imprimir pedido', error)
-    $q.notify({ type: 'negative', message: 'Não foi possível imprimir o pedido.' })
-  }
-}
-async function editar(transacao) {
-  if (!transacao) return
-  try {
-    const itens = await ensureItensCarregados(transacao)
-    transacaoEmEdicao.value = transacao
-    draftPedido.value = {
-      cliente_id: transacao.cliente_id || null,
-      nome_cliente_avulso: transacao.nome_cliente_avulso || null,
-      nome_funcionario_empresa: transacao.nome_funcionario_empresa || '',
-      itens: itens.map((it) => ({
-        _uid: uid(),
-        produto_id: it.produto_id || null,
-        nome_produto_congelado: it.nome_produto_congelado || 'Produto',
-        preco_unitario_congelado: Number(it.preco_unitario_congelado || 0),
-        quantidade: Number(it.quantidade || 1),
-      })),
-      pago: transacao.status_pagamento === 'PAGO',
-      forma_pagamento: transacao.forma_pagamento || null,
-      observacoes: transacao.observacoes || '',
-    }
-    detalhePedidoDialog.value?.fechar?.()
-    if (isMobile.value) {
-      mobileSection.value = 'form'
-    }
-    $q.notify({ type: 'info', message: 'Pedido carregado para edicao. Ajuste e salve.' })
-  } catch (error) {
-    console.error('Falha ao preparar itens para edicao', error)
-    $q.notify({ type: 'negative', message: 'Nao foi possivel preparar o pedido para edicao.' })
-  }
-}
-
-function cancelarPedido(transacao) {
-  if (!transacao) return
-  $q.dialog({
-    title: 'Cancelar pedido',
-    message:
-      'Deseja realmente cancelar este pedido? Ele sera mantido para auditoria, porem nao entrara nas contagens.',
-    cancel: { label: 'Voltar' },
-    ok: { label: 'Cancelar pedido', color: 'negative' },
-    persistent: true,
-  }).onOk(async () => {
-    try {
-      await removerTransacao(transacao)
-      if (transacaoEmEdicao.value?.id === transacao.id) {
-        transacaoEmEdicao.value = null
-        draftPedido.value = null
-      }
-      detalhePedidoDialog.value?.fechar?.()
-      $q.notify({ type: 'positive', message: 'Pedido cancelado com sucesso.' })
-    } catch (error) {
-      console.error('Falha ao cancelar pedido', error)
-      $q.notify({ type: 'negative', message: 'Nao foi possivel cancelar o pedido.' })
-    }
-  })
-}
-
-async function excluirPedidoDefinitivo(transacao) {
-  if (!transacao) return
-  const resultado = await solicitarSenhaExclusaoDefinitiva()
-  if (!resultado.autorizado) {
-    if (!resultado.cancelado) {
-      $q.notify({ type: 'negative', message: 'Senha incorreta. Exclusao cancelada.' })
-    }
+  if (t.status_pagamento === 'PARCIAL') {
+    $q.notify({ type: 'warning', message: 'Pagamento parcial. Ajuste pelo contas a receber.' })
     return
   }
+  if (t.status_pagamento === 'CANCELADA') return
+  iniciarCooldownTogglePago()
+  await aplicarTogglePago(t)
+}
+
+async function aplicarTogglePago(transacao) {
   try {
-    await excluirTransacaoDefinitiva(transacao)
-    if (transacaoEmEdicao.value?.id === transacao.id) {
-      transacaoEmEdicao.value = null
-      draftPedido.value = null
-    }
-    detalhePedidoDialog.value?.fechar?.()
-    $q.notify({ type: 'positive', message: 'Pedido excluido definitivamente.' })
+    await togglePago(transacao)
   } catch (error) {
-    console.error('Falha ao excluir pedido definitivamente', error)
-    $q.notify({ type: 'negative', message: 'Nao foi possivel excluir o pedido.' })
+    if (error?.code === 'PAGAMENTO_ALOCADO') {
+      $q.notify({ type: 'warning', message: 'Venda possui pagamentos aplicados. Ajuste pelo contas a receber.' })
+      return
+    }
+    $q.notify({ type: 'negative', message: 'Falha ao atualizar o pagamento.' })
+    console.error(error)
   }
 }
-
-function solicitarSenhaExclusaoDefinitiva() {
-  return new Promise((resolve) => {
-    $q.dialog({
-      title: 'Excluir pedido definitivamente?',
-      message:
-        'Esta acao nao pode ser desfeita. Digite sua senha de administrador para confirmar.',
-      prompt: {
-        model: '',
-        type: 'password',
-        label: 'Senha do administrador',
-        filled: true,
-      },
-      ok: { label: 'Confirmar', color: 'negative', unelevated: true },
-      cancel: { label: 'Cancelar' },
-      persistent: true,
-    })
-      .onOk((valor) => {
-        const senha = String(valor || '').trim()
-        resolve({ autorizado: senha === SENHA_ADMIN, cancelado: false })
-      })
-      .onCancel(() => resolve({ autorizado: false, cancelado: true }))
-  })
-}
-
-// Forma
-const dialogForma = ref({ aberto: false, forma: null, alvo: null })
-function abrirFormaPagamento(t) {
-  dialogForma.value = { aberto: true, forma: t.forma_pagamento || null, alvo: t }
-}
-async function confirmarForma(forma) {
-  if (dialogForma.value.alvo) await setFormaPagamento(dialogForma.value.alvo, forma)
-}
-// Detalhes
-async function abrirDetalhes(t) {
-  if (!detalhePedidoDialog.value) return
-  await carregarItens(t.id)
-  const itens = itensPorTransacao.value[t.id] || []
-  const total = Number(t.valor ?? t.valor_total ?? 0)
-  detalhePedidoDialog.value.abrir({
-    itens,
-    cliente: nomeDoCliente(t),
-    funcionario: t.nome_funcionario_empresa,
-    formaPagamento: nomeFormaPagamento(t.forma_pagamento),
-    status: t.status_pagamento,
-    data: t.data_transacao || t.created_at,
-    observacao: t.observacoes,
-    total,
-    onImprimir: () => imprimir(t),
-    onEditar: t.status_pagamento !== 'CANCELADA' ? () => editar(t) : null,
-    onCancelar: t.status_pagamento !== 'CANCELADA' ? () => cancelarPedido(t) : null,
-    onExcluir: () => excluirPedidoDefinitivo(t),
-  })
-}
-// Totais protegidos
-const totaisVisiveis = ref(false)
-function toggleTotais() {
-  if (totaisVisiveis.value) {
-    totaisVisiveis.value = false
-    return
-  }
-  abrirDialogSenha({
-    contexto: 'totais',
-    titulo: 'Totais protegidos',
-    mensagem: 'Digite a senha para visualizar os valores.',
-    confirmarRotulo: 'OK',
-    cancelarRotulo: 'Cancelar',
-    corConfirmar: 'warning',
-    rotulo: 'Senha',
-  })
-}
-// Caixa
-const mostrarCalendario = ref(false)
 </script>
+
 <style scoped>
-.caderno-page.app-page {
-  padding: 24px 24px 32px;
-}
-.caderno-page {
-  --caderno-yellow: #ffd54f;
-  --caderno-yellow-strong: #f4b336;
-  --caderno-surface: rgba(255, 255, 255, 0.96);
-  --caderno-surface-alt: rgba(255, 245, 196, 0.7);
-  --caderno-outline: rgba(255, 213, 79, 0.28);
-  --caderno-shadow: 0 18px 36px rgba(32, 25, 10, 0.12);
-  --caderno-text-strong: #3b2f00;
-  --caderno-text-medium: #6d5a1a;
-  --caderno-text-muted: rgba(59, 47, 0, 0.58);
-}
-.caderno-page__cash-btn {
-  font-size: 15px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 14px;
-  background: rgba(255, 213, 79, 0.24);
-  color: var(--caderno-text-strong);
-  box-shadow: 0 12px 24px rgba(244, 179, 54, 0.18);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
 .caderno-page__cash-btn--icon {
   padding: 10px;
   border-radius: 999px;
 }
 .caderno-page__cash-btn:hover {
   transform: translateY(-2px);
-  background: rgba(255, 213, 79, 0.34);
-  box-shadow: 0 16px 32px rgba(244, 179, 54, 0.28);
+  background: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
 }
 .caderno-page__board-col,
 .caderno-page__form-col {
@@ -1007,13 +1045,13 @@ const mostrarCalendario = ref(false)
   gap: 8px;
 }
 .painel__acoes-nav :deep(.q-btn) {
-  background: rgba(255, 213, 79, 0.22);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--caderno-text-strong);
   border-radius: 14px;
   transition: transform 0.2s ease, background 0.2s ease;
 }
 .painel__acoes-nav :deep(.q-btn:hover) {
-  background: rgba(255, 213, 79, 0.32);
+  background: rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
 .caderno-board__header {
@@ -1056,7 +1094,7 @@ const mostrarCalendario = ref(false)
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  background: rgba(255, 213, 79, 0.22);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--caderno-text-strong);
 }
 .caderno-board__section-chip--pronto {
@@ -1144,7 +1182,7 @@ const mostrarCalendario = ref(false)
   padding: 24px 28px 12px;
   font-size: 18px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--brand-text-strong);
 }
 
 .caixa-dialog--compact :deep(.q-card__section:nth-of-type(2)) {
@@ -1166,8 +1204,8 @@ const mostrarCalendario = ref(false)
   border-radius: 12px;
   font-weight: 700;
   padding: 10px 24px;
-  background: linear-gradient(130deg, #fde047, #f59e0b);
-  color: #3b2f00;
+  background: linear-gradient(130deg, var(--brand-primary), var(--brand-primary));
+  color: var(--brand-text-strong);
   box-shadow: 0 14px 28px rgba(245, 158, 11, 0.28);
 }
 

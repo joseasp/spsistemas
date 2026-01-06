@@ -7,8 +7,8 @@
         <div class="clientes-page__title">Clientes</div>
         <q-btn
           label="Adicionar novo cliente"
-          color="warning"
-          text-color="dark"
+          color="primary"
+          text-color="white"
           unelevated
           icon="add"
           @click="abrirModalDeNovoCliente"
@@ -19,12 +19,12 @@
       <section class="painel clientes-filters-panel">
         <div class="row q-col-gutter-md clientes-filters-panel__row">
           <div class="col-12 col-md-8">
-            <q-input outlined dense v-model="termoBusca" placeholder="Buscar por nome, contato ou observação" clearable>
+            <q-input outlined dense class="input-uppercase" v-model="termoBusca" placeholder="Buscar por nome, contato ou observação" clearable>
               <template v-slot:prepend> <q-icon name="search" /> </template>
             </q-input>
           </div>
           <div class="col-12 col-md-4 text-md-right">
-            <q-toggle v-model="mostrarInativos" label="Mostrar inativos" color="warning" keep-color />
+            <q-toggle v-model="mostrarInativos" label="Mostrar inativos" color="primary" keep-color />
           </div>
         </div>
       </section>
@@ -82,6 +82,7 @@
               <div class="col-12">
                 <q-input
                   outlined
+                  class="input-uppercase"
                   v-model="clienteEmEdicao.nome"
                   label="Nome do cliente *"
                   :rules="[(val) => !!val && val.trim().length > 0 || 'Informe um nome']"
@@ -93,6 +94,7 @@
               <div class="col-12 col-sm-6">
                 <q-input
                   outlined
+                  class="input-uppercase"
                   v-model="clienteEmEdicao.contato"
                   label="Contato (telefone, WhatsApp, etc.)"
                   maxlength="60"
@@ -113,6 +115,7 @@
                 <q-input
                   outlined
                   type="textarea"
+                  class="input-uppercase"
                   v-model="clienteEmEdicao.observacoes"
                   label="Observacoes"
                   autogrow
@@ -123,7 +126,7 @@
                 <q-toggle
                   v-model="clienteEmEdicao.ativo"
                   label="Cliente ativo"
-                  color="warning"
+                  color="primary"
                   keep-color
                 />
               </div>
@@ -135,7 +138,7 @@
           <q-btn label="Cancelar" color="grey-8" flat v-close-popup />
           <q-btn
             :label="modoEdicao ? 'Salvar alteracoes' : 'Salvar cliente'"
-            color="warning"
+            color="primary"
             unelevated
             @click="handleSubmit"
             :loading="isSaving"
@@ -154,7 +157,7 @@
           <div class="row items-center q-gutter-sm">
             <q-toggle
               v-if="clienteSelecionado"
-              color="warning"
+              color="primary"
               keep-color
               dense
               :loading="clienteSelecionado && clienteEstaEmProcesso(clienteSelecionado.id)"
@@ -206,7 +209,7 @@
           </q-banner>
 
           <div v-if="funcionariosLoading" class="row justify-center q-my-lg">
-            <q-spinner color="warning" size="36px" />
+            <q-spinner color="primary" size="36px" />
           </div>
 
           <div v-else>
@@ -247,7 +250,7 @@
               <div class="col-12 col-sm-4">
                 <q-btn
                   label="Adicionar"
-                  color="warning"
+                  color="primary"
                   unelevated
                   class="full-width"
                   :loading="adicionandoFuncionario"
@@ -279,7 +282,7 @@
               @click="clienteSelecionado && handleDelete(clienteSelecionado)"
             />
           </div>
-          <q-btn flat color="warning" label="Fechar" v-close-popup />
+          <q-btn flat color="primary" label="Fechar" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -625,7 +628,7 @@ onMounted(() => {
 .clientes-page__title {
   font-size: 28px;
   font-weight: 700;
-  color: #3b372a;
+  color: var(--brand-text-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -705,19 +708,19 @@ onMounted(() => {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(59, 55, 42, 0.6);
+  color: var(--brand-text-muted);
   margin-bottom: 4px;
 }
 .cliente-detalhes__value {
   font-size: 1rem;
   font-weight: 500;
-  color: #3b372a;
+  color: var(--brand-text-strong);
 }
 .cliente-detalhes__value--multiline {
   white-space: pre-line;
 }
 .cliente-detalhes__funcionarios {
-  background: rgba(255, 249, 230, 0.5);
+  background: color-mix(in srgb, var(--brand-secondary) 50%, transparent);
 }
 .cliente-detalhes__lista {
   border-radius: 12px;

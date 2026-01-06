@@ -4,40 +4,55 @@
 @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap');
 @import './app-theme.scss';
 
-// 2. Define os estilos padrão para todo o aplicativo
-body {
-  // Define a nova fonte como padrão para todos os textos
-  font-family: 'Work Sans', sans-serif;
-
-  // Define a nossa nova cor de fundo off-white
-  // A variável vem do arquivo que acabamos de editar!
-  background-color: $background-light;
+// 2. Tokens globais para o tema
+:root {
+  --brand-primary: #f9bf10;
+  --brand-secondary: #e9e6da;
+  --brand-accent: #dcd8c9;
+  --brand-background: #f8f8f5;
+  --brand-border: #e0e0e0;
+  --brand-surface: #ffffff;
+  --brand-surface-soft: #f3f3f4;
+  --brand-text-strong: #3b2f00;
+  --brand-text-muted: #6a6a6a;
 }
 
-// 3. (Opcional, mas recomendado) Define a fonte para os títulos
-// Isso garante que os títulos tenham um peso visual consistente.
+// 3. Define os estilos padrao para todo o aplicativo
+body {
+  font-family: 'Work Sans', sans-serif;
+  background-color: var(--brand-background);
+}
+
+// 4. Fonte para titulos
 .text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6 {
   font-family: 'Work Sans', sans-serif;
 }
 
-// 3. Estilos globais para os cards, para imitar a inspiração
-// Removemos a borda padrão e adicionamos um border-radius maior
+// 5. Estilos globais para cards
 .q-card {
-  border-radius: 0.75rem; // corresponde ao 'rounded-xl' do Tailwind
-  border: 1px solid $subtle-light;
-  box-shadow: none; // A inspiração tem uma sombra muito sutil ou nenhuma
+  border-radius: 0.75rem;
+  border: 1px solid var(--brand-border);
+  box-shadow: none;
 }
 
 .q-btn {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .q-btn:hover {
-  transform: scale(1.05); // O botão aumenta um pouquinho
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); // Adiciona uma sombra suave
+  transform: none;
+  box-shadow: none;
 }
 
 .item-inativo {
   opacity: 0.5;
   transition: opacity 0.3s ease;
+}
+
+
+.input-uppercase .q-field__native,
+.input-uppercase .q-field__input,
+.input-uppercase input,
+.input-uppercase textarea {
+  text-transform: uppercase;
 }

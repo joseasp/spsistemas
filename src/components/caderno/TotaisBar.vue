@@ -36,7 +36,7 @@ defineEmits(['toggle'])
 
 <style scoped>
 .totais-bar {
-  border-top: 1px solid rgba(255, 213, 79, 0.28);
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 28%, transparent);
   background: rgba(255, 255, 255, 0.95);
   z-index: 2;
   box-shadow: 0 -8px 18px rgba(32, 25, 10, 0.08);
@@ -48,7 +48,7 @@ defineEmits(['toggle'])
 }
 .value {
   font-weight: 700;
-  color: #3b2f00;
+  color: var(--brand-text-strong);
 }
 .value.pedidos {
   font-size: 18px;

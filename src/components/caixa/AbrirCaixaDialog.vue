@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-dialog v-model="ativo" :maximized="$q.screen.lt.md">
     <q-card class="caixa-dialog caixa-dialog--compact">
       <q-card-section class="text-subtitle1">Abrir Caixa</q-card-section>
@@ -63,7 +63,7 @@ function confirmar() {
   padding: 24px 28px 12px;
   font-size: 18px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--brand-text-strong);
 }
 
 .caixa-dialog--compact :deep(.q-card__section:nth-of-type(2)) {
@@ -85,8 +85,8 @@ function confirmar() {
   border-radius: 12px;
   font-weight: 700;
   padding: 10px 24px;
-  background: linear-gradient(130deg, #fde047, #f59e0b);
-  color: #3b2f00;
+  background: linear-gradient(130deg, var(--brand-primary), var(--brand-primary));
+  color: var(--brand-text-strong);
   box-shadow: 0 14px 28px rgba(245, 158, 11, 0.28);
 }
 

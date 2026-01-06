@@ -7,8 +7,8 @@
         <div class="produtos-page__title">Produtos</div>
         <q-btn
           label="Adicionar Novo Produto"
-          color="warning"
-          text-color="dark"
+          color="primary"
+          text-color="white"
           unelevated
           icon="add"
           @click="abrirModalDeNovoProduto"
@@ -19,7 +19,7 @@
       <section class="painel produtos-filters-panel">
         <div class="row q-col-gutter-md produtos-filters-panel__row">
           <div class="col-12 col-md-4">
-            <q-input outlined dense v-model="termoBusca" placeholder="Buscar produtos...">
+            <q-input outlined dense class="input-uppercase" v-model="termoBusca" placeholder="Buscar produtos...">
               <template v-slot:prepend> <q-icon name="search" /> </template>
             </q-input>
           </div>
@@ -47,7 +47,7 @@
             />
           </div>
           <div class="col-12 col-md-2">
-            <q-toggle v-model="mostrarInativos" label="Mostrar Inativos" color="warning" keep-color />
+            <q-toggle v-model="mostrarInativos" label="Mostrar Inativos" color="primary" keep-color />
           </div>
         </div>
       </section>
@@ -127,6 +127,7 @@
               <div class="col-12">
                 <q-input
                   outlined
+                  class="input-uppercase"
                   v-model="produtoEmEdicao.nome"
                   label="Nome do Produto *"
                   :rules="[(val) => !!val || 'Campo obrigatório']"
@@ -145,6 +146,7 @@
               <div class="col-xs-12 col-sm-6">
                 <q-select
                   outlined
+                  class="input-uppercase"
                   v-model="produtoEmEdicao.categoria"
                   :options="opcoesDeCategoria"
                   label="Categoria"
@@ -161,7 +163,7 @@
           <q-btn label="Cancelar" color="grey-8" flat v-close-popup />
           <q-btn
             :label="modoEdicao ? 'Salvar Alterações' : 'Salvar Produto'"
-            color="warning"
+            color="primary"
             unelevated
             @click="handleSubmit"
             :loading="isSaving"
@@ -174,7 +176,7 @@
     <q-card flat bordered class="q-pa-md q-mb-md">
       <div class="row q-col-gutter-md items-center">
         <div class="col-12 col-md-4">
-          <q-input outlined dense v-model="termoBusca" placeholder="Buscar produtos..." style="border-radius: 0.5rem;">
+          <q-input outlined dense class="input-uppercase" v-model="termoBusca" placeholder="Buscar produtos..." style="border-radius: 0.5rem;">
             <template v-slot:prepend> <q-icon name="search" /> </template>
           </q-input>
         </div>

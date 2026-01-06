@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-dialog
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -16,7 +16,7 @@
       <div class="dialog-card__body">
         <q-input
           v-model="responsavel"
-          label="Responsável"
+          label="Respons�vel"
           dense
           outlined
           autofocus
@@ -40,7 +40,7 @@
         <q-btn
           unelevated
           class="dialog-card__btn-salvar"
-          color="warning"
+          color="primary"
           label="Abrir caixa"
           :disable="!responsavel"
           @click="confirmar"
@@ -107,7 +107,7 @@ function confirmar() {
 .dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3a3425;
+  color: var(--brand-text-strong);
   text-transform: capitalize;
 }
 
@@ -145,7 +145,7 @@ function confirmar() {
   font-weight: 700;
   padding: 10px 18px;
   border-radius: 14px;
-  background: linear-gradient(115deg, #ffca28, #ffb300);
+  background: linear-gradient(115deg, var(--brand-primary), var(--brand-primary));
   color: #3b2500;
 }
 

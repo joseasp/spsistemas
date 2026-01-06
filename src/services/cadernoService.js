@@ -3,6 +3,7 @@ import { supabase } from 'src/supabaseClient'
 
 const ANOTACOES_COL = 'anotacoes'
 const PAGAMENTOS_TABELA = 'pagamentos'
+const ALOCACOES_TABELA = 'pagamento_alocacoes'
 
 function isMissingTable(error) {
   if (!error) return false
@@ -17,6 +18,12 @@ function isMissingColumn(error) {
   if (error.code === '42703') return true
   const msg = (error.message || '').toLowerCase()
   return msg.includes('column') && msg.includes('does not exist')
+}
+
+function normalizeTextoUpper(value) {
+  if (value === null || value === undefined) return null
+  const texto = String(value)
+  return texto ? texto.toUpperCase() : null
 }
 
 function normalizeDataTransacao(value) {
@@ -60,6 +67,13 @@ async function deletePagamentosPorIds(ids) {
 async function syncPagamentoCliente({ transacaoId }) {
   if (!transacaoId) return
   try {
+    const { error } = await supabase.from(ALOCACOES_TABELA).select('id').limit(1)
+    if (!error) return
+    if (!isMissingTable(error)) throw error
+  } catch (error) {
+    if (!isMissingTable(error)) throw error
+  }
+  try {
     // Vendas pagas nao devem gerar lancamentos adicionais em pagamentos
     const { registros } = await queryPagamentosPorTransacao(transacaoId)
     const idsParaExcluir = (registros || []).map((p) => p.id).filter(Boolean)
@@ -77,7 +91,7 @@ function mapItensPayload(transacaoId, itens) {
     produto_id: it.produto_id ?? null,
     quantidade: Number(it.quantidade || 1),
     preco_unitario_congelado: Number(it.preco_unitario_congelado || 0),
-    nome_produto_congelado: it.nome_produto_congelado || null,
+    nome_produto_congelado: normalizeTextoUpper(it.nome_produto_congelado) || null,
   }))
 }
 
@@ -167,11 +181,11 @@ export async function criarTransacaoComItens({
     (acc, it) => acc + Number(it.quantidade) * Number(it.preco_unitario_congelado),
     0,
   )
-  const anotacoesPayload = observacoes ? { [ANOTACOES_COL]: observacoes } : {}
+  const anotacoesPayload = observacoes ? { [ANOTACOES_COL]: normalizeTextoUpper(observacoes) } : {}
   const payload = {
     cliente_id: cliente_id ?? null,
-    nome_cliente_avulso: nome_cliente_avulso ?? null,
-    nome_funcionario_empresa: nome_funcionario_empresa ?? null,
+    nome_cliente_avulso: normalizeTextoUpper(nome_cliente_avulso),
+    nome_funcionario_empresa: normalizeTextoUpper(nome_funcionario_empresa),
     data_transacao: normalizeDataTransacao(data_transacao),
     forma_pagamento: status_pagamento === 'PAGO' ? forma_pagamento ?? null : null,
     status_pagamento: status_pagamento ?? 'PENDENTE',
@@ -209,6 +223,7 @@ export async function atualizarTransacaoComItens(transacaoId, {
   cliente_id,
   nome_cliente_avulso,
   nome_funcionario_empresa,
+  data_transacao,
   forma_pagamento,
   status_pagamento,
   itens,
@@ -220,16 +235,19 @@ export async function atualizarTransacaoComItens(transacaoId, {
   )
   const statusFinal = status_pagamento ?? 'PENDENTE'
   const formaFinal = statusFinal === 'PAGO' ? forma_pagamento ?? null : null
-  const anotacoesPayload = observacoes !== undefined ? { [ANOTACOES_COL]: observacoes || null } : {}
+  const anotacoesPayload = observacoes !== undefined ? { [ANOTACOES_COL]: normalizeTextoUpper(observacoes) } : {}
 
   const updatePayload = {
     cliente_id: cliente_id ?? null,
-    nome_cliente_avulso: nome_cliente_avulso ?? null,
-    nome_funcionario_empresa: nome_funcionario_empresa ?? null,
+    nome_cliente_avulso: normalizeTextoUpper(nome_cliente_avulso),
+    nome_funcionario_empresa: normalizeTextoUpper(nome_funcionario_empresa),
     forma_pagamento: formaFinal,
     status_pagamento: statusFinal,
     valor,
     ...anotacoesPayload,
+  }
+  if (data_transacao) {
+    updatePayload.data_transacao = normalizeDataTransacao(data_transacao)
   }
 
   const { data: transacao, error } = await supabase
@@ -343,6 +361,19 @@ export async function marcarNaoPago(transacaoId) {
   return data
 }
 
+export async function marcarNaoInformado(transacaoId) {
+  const { data, error } = await supabase
+    .from('transacoes')
+    .update({ status_pagamento: 'NAO_INFORMADO', forma_pagamento: null })
+    .eq('id', transacaoId)
+    .select()
+    .single()
+  if (error) throw error
+  await syncPagamentoCliente({ transacaoId })
+  return data
+}
+
+
 export async function definirFormaPagamento(transacaoId, forma_pagamento) {
   const { data, error } = await supabase
     .from('transacoes')
@@ -368,7 +399,7 @@ export async function setPronto(transacaoId, pronto) {
 }
 
 export async function estornarTransacao(transacaoId, motivo = null) {
-  const anotacoes = motivo ? { [ANOTACOES_COL]: motivo } : {}
+  const anotacoes = motivo ? { [ANOTACOES_COL]: normalizeTextoUpper(motivo) } : {}
   const { data, error } = await supabase
     .from('transacoes')
     .update({ status_pagamento: 'CANCELADA', forma_pagamento: null, ...anotacoes })

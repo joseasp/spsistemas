@@ -20,7 +20,7 @@
           filled
           v-model="form.nome"
           label="Nome do produto"
-          class="dialog-card__input"
+          class="dialog-card__input input-uppercase"
           @keyup.enter="precoInput.focus()"
         />
         <q-input
@@ -41,7 +41,7 @@
         <q-btn
           unelevated
           class="dialog-card__btn-salvar"
-          color="warning"
+          color="primary"
           label="Adicionar"
           :disable="!form.nome || !form.preco"
           @click="salvar"
@@ -113,7 +113,7 @@ function salvar() {
 .dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3a3425;
+  color: var(--brand-text-strong);
 }
 
 .dialog-card__subtitle {

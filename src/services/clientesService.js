@@ -3,6 +3,22 @@ import { supabase } from 'src/supabaseClient'
 const FUNCIONARIOS_TABLE = 'funcionarios_empresa'
 const FUNCIONARIO_CLIENTE_COL = 'cliente_id'
 
+function normalizeTextoUpper(value) {
+  if (value === null || value === undefined) return null
+  const texto = String(value)
+  return texto ? texto.toUpperCase() : null
+}
+
+function normalizeClientePayload(cliente) {
+  if (!cliente) return cliente
+  return {
+    ...cliente,
+    nome: normalizeTextoUpper(cliente.nome),
+    contato: normalizeTextoUpper(cliente.contato),
+    observacoes: normalizeTextoUpper(cliente.observacoes),
+  }
+}
+
 function normalizeError(error, fallbackMessage) {
   return {
     message: error?.message || fallbackMessage,
@@ -24,7 +40,7 @@ export async function fetchClientes() {
 export async function createCliente(cliente) {
   const { data, error } = await supabase
     .from('clientes')
-    .insert([cliente])
+    .insert([normalizeClientePayload(cliente)])
     .select()
     .single()
   if (error) {
@@ -37,7 +53,7 @@ export async function updateCliente(cliente) {
   const { id, ...clienteData } = cliente
   const { data, error } = await supabase
     .from('clientes')
-    .update(clienteData)
+    .update(normalizeClientePayload(clienteData))
     .eq('id', id)
     .select()
     .single()
@@ -82,7 +98,7 @@ export async function fetchFuncionariosEmpresa(clienteId) {
 export async function createFuncionarioEmpresa({ clienteId, nome }) {
   const { data, error } = await supabase
     .from(FUNCIONARIOS_TABLE)
-    .insert([{ [FUNCIONARIO_CLIENTE_COL]: clienteId, nome }])
+    .insert([{ [FUNCIONARIO_CLIENTE_COL]: clienteId, nome: normalizeTextoUpper(nome) }])
     .select()
     .single()
   if (error) {

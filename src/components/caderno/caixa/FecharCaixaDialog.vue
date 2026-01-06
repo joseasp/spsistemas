@@ -1,4 +1,4 @@
-ï»¿<template>
+<template>
   <q-dialog
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -37,7 +37,7 @@
                   : 'dialog-summary__row--negativo'
             "
           >
-            <span class="dialog-summary__label">DiferenÃ§a</span>
+            <span class="dialog-summary__label">Diferença</span>
             <span class="dialog-summary__value">R$ {{ difTotal.toFixed(2) }}</span>
           </div>
         </div>
@@ -45,24 +45,24 @@
         <div v-if="pendencias?.length" class="dialog-alert">
           <div class="dialog-alert__title">Pagamentos sem forma registrada</div>
           <div class="dialog-alert__text">
-            Existem pagamentos do perÃ­odo sem forma definida. Corrija antes de fechar o caixa.
+            Existem pagamentos do período sem forma definida. Corrija antes de fechar o caixa.
           </div>
           <div class="dialog-alert__list">
             <div v-for="p in pendencias" :key="p.id" class="dialog-alert__item">
-              Pagamento #{{ p.id }} â€” R$ {{ Number(p.valor || 0).toFixed(2) }}
+              Pagamento #{{ p.id }} — R$ {{ Number(p.valor || 0).toFixed(2) }}
             </div>
           </div>
         </div>
 
         <div class="dialog-table">
-          <div class="dialog-table__title">ConferÃªncia por forma de pagamento</div>
+          <div class="dialog-table__title">Conferência por forma de pagamento</div>
           <q-markup-table flat bordered class="dialog-table__table">
             <thead>
               <tr>
                 <th>Forma</th>
                 <th class="text-right">Esperado</th>
                 <th class="text-right">Contado</th>
-                <th class="text-right">DiferenÃ§a</th>
+                <th class="text-right">Diferença</th>
               </tr>
             </thead>
             <tbody>
@@ -95,7 +95,7 @@
         <q-btn
           unelevated
           class="dialog-card__btn-salvar"
-          color="warning"
+          color="primary"
           label="Fechar caixa"
           :disable="!!pendencias?.length"
           @click="confirmar"
@@ -147,8 +147,8 @@ function nomeForma(f) {
   return {
     DINHEIRO: 'Dinheiro',
     PIX: 'Pix',
-    DEBITO: 'DÃ©bito',
-    CREDITO: 'CrÃ©dito',
+    DEBITO: 'Débito',
+    CREDITO: 'Crédito',
     OUTRO: 'Outro',
   }[f]
 }
@@ -189,7 +189,7 @@ function confirmar() {
 .dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3a3425;
+  color: var(--brand-text-strong);
   text-transform: capitalize;
 }
 
@@ -356,7 +356,7 @@ function confirmar() {
   font-weight: 700;
   padding: 10px 20px;
   border-radius: 14px;
-  background: linear-gradient(115deg, #ffca28, #ffb300);
+  background: linear-gradient(115deg, var(--brand-primary), var(--brand-primary));
   color: #3b2500;
 }
 

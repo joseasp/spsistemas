@@ -31,3 +31,9 @@ yarn-error.log*
 
 # local .env files
 .env.local*
+
+# local CLI tools
+tools/supabase/
+
+# supabase access tokens
+supabase/env/.env

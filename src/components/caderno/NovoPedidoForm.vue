@@ -66,6 +66,8 @@
 
               input-debounce="0"
 
+              input-class="input-uppercase"
+
               no-option-label=""
 
               @filter="filterClientes"
@@ -79,6 +81,8 @@
               v-else
 
               filled
+
+              class="input-uppercase"
 
               v-model="form.nome_cliente_avulso"
 
@@ -112,6 +116,7 @@
 
             input-debounce="0"
 
+              input-class="input-uppercase"
             emit-value
 
             map-options
@@ -172,7 +177,9 @@
 
                 input-debounce="0"
 
-                no-option-label=""
+              input-class="input-uppercase"
+
+              no-option-label=""
 
                 @filter="filterProdutos"
 
@@ -240,13 +247,19 @@
 
         <div class="row items-center q-col-gutter-md">
 
-          <div class="col-auto">
-
-            <q-toggle v-model="form.pago" label="Pago" :disable="clienteAvulso" />
-
+          <div class="col">
+            <q-select
+              filled
+              :options="statusOptions"
+              emit-value
+              map-options
+              v-model="form.status_pagamento"
+              label="Status do pagamento"
+              :disable="clienteAvulso"
+            />
           </div>
 
-          <div class="col" v-if="form.pago">
+          <div class="col" v-if="form.status_pagamento === 'PAGO'">
             <q-select
               filled
               :options="formasPagamento"
@@ -258,6 +271,14 @@
           </div>
 
         </div>
+
+        <q-input
+          v-model="form.data_transacao"
+          type="datetime-local"
+          filled
+          label="Data/hora do pedido"
+          class="q-mt-sm"
+        />
 
         <q-banner v-if="clienteAvulso" dense class="bg-grey-2 q-mt-sm novo-pedido__avulso-tip">
 
@@ -280,6 +301,8 @@
           filled
 
           v-model="form.observacoes"
+
+          class="input-uppercase"
 
           label="Anotaes (instrues para preparo)"
 
@@ -344,9 +367,14 @@ const abrirProdutoAvulso = ref(false)
 const formasPagamento = [
   { label: 'Dinheiro', value: 'DINHEIRO' },
   { label: 'Pix', value: 'PIX' },
-  { label: 'Debito', value: 'DEBITO' },
-  { label: 'Credito', value: 'CREDITO' },
+  { label: 'D\u00e9bito', value: 'DEBITO' },
+  { label: 'Cr\u00e9dito', value: 'CREDITO' },
   { label: 'Outro', value: 'OUTRO' },
+]
+const statusOptions = [
+  { label: 'N\u00e3o informado', value: 'NAO_INFORMADO' },
+  { label: 'Pago', value: 'PAGO' },
+  { label: 'N\u00e3o pago', value: 'PENDENTE' },
 ]
 const clienteBuscaTermo = ref('')
 const produtoBuscaTermo = ref('')
@@ -359,8 +387,9 @@ const form = ref({
   nome_cliente_avulso: null,
   nome_funcionario_empresa: '',
   itens: [],
-  pago: false,
+  status_pagamento: 'NAO_INFORMADO',
   forma_pagamento: null,
+  data_transacao: formatLocalDateTime(new Date()),
   observacoes: '',
 })
 
@@ -391,6 +420,12 @@ watch(funcionariosDaEmpresa, (lista) => {
   funcionariosOptions.value = base.map((nome) => ({ label: nome, value: nome }))
 })
 
+watch(() => form.value.status_pagamento, (status) => {
+  if (status !== 'PAGO') {
+    form.value.forma_pagamento = null
+  }
+})
+
 watch(() => form.value.cliente_id, async (cid, oldCid) => {
   if (!cid) {
     form.value.nome_funcionario_empresa = ''
@@ -411,16 +446,10 @@ watch(() => form.value.cliente_id, async (cid, oldCid) => {
 watch(clienteAvulso, (v) => {
   if (v) {
     form.value.cliente_id = null
-    form.value.pago = true
+    form.value.status_pagamento = 'PAGO'
     form.value.nome_funcionario_empresa = ''
   } else {
     form.value.nome_cliente_avulso = null
-  }
-})
-
-watch(() => form.value.pago, (v) => {
-  if (clienteAvulso.value && !v) {
-    form.value.pago = true
   }
 })
 
@@ -432,8 +461,9 @@ watch(() => props.draft, async (d) => {
     nome_cliente_avulso: d.nome_cliente_avulso || null,
     nome_funcionario_empresa: d.nome_funcionario_empresa || '',
     itens,
-    pago: d.cliente_id ? !!d.pago : true,
+    status_pagamento: d.status_pagamento || (d.cliente_id ? (d.pago ? 'PAGO' : 'PENDENTE') : 'PAGO'),
     forma_pagamento: d.forma_pagamento || null,
+    data_transacao: d.data_transacao ? formatLocalDateTime(new Date(d.data_transacao)) : formatLocalDateTime(new Date()),
     observacoes: d.observacoes || '',
   }
   clienteAvulso.value = !d.cliente_id
@@ -453,7 +483,24 @@ watch(() => props.draft, async (d) => {
     }
   })
 }, { immediate: false })
+function formatLocalDateTime(date) {
+  const offset = date.getTimezoneOffset() * 60000
+  const local = new Date(date.getTime() - offset)
+  return local.toISOString().slice(0, 16)
+}
 
+function normalizeTextoUpper(value) {
+  if (value === null || value === undefined) return null
+  const texto = String(value)
+  return texto ? texto.toUpperCase() : null
+}
+
+function toIsoFromLocal(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
 function normalizarTexto(valor) {
   const texto = (valor || '')
   const normalizado = typeof texto.normalize === 'function'
@@ -609,18 +656,19 @@ const podeSalvar = computed(() => {
 })
 
 function confirmar() {
-  const pagoFinal = clienteAvulso.value ? true : !!form.value.pago
+  const statusFinal = clienteAvulso.value ? 'PAGO' : (form.value.status_pagamento || 'NAO_INFORMADO')
   emit('confirm', {
     cliente_id: clienteAvulso.value ? null : form.value.cliente_id,
-    nome_cliente_avulso: clienteAvulso.value ? form.value.nome_cliente_avulso || null : null,
+    nome_cliente_avulso: clienteAvulso.value ? normalizeTextoUpper(form.value.nome_cliente_avulso) : null,
     nome_funcionario_empresa:
       !clienteAvulso.value && clienteEhEmpresa.value
-        ? form.value.nome_funcionario_empresa || null
+        ? normalizeTextoUpper(form.value.nome_funcionario_empresa)
         : null,
-    pago: pagoFinal,
-    forma_pagamento: pagoFinal ? form.value.forma_pagamento || null : null,
+    status_pagamento: statusFinal,
+    forma_pagamento: statusFinal === 'PAGO' ? form.value.forma_pagamento || null : null,
     itens: form.value.itens,
-    observacoes: form.value.observacoes || null,
+    data_transacao: toIsoFromLocal(form.value.data_transacao),
+    observacoes: normalizeTextoUpper(form.value.observacoes) || null,
   })
   clienteAvulso.value = false
   produtoSelecionado.value = null
@@ -629,8 +677,9 @@ function confirmar() {
     nome_cliente_avulso: null,
     nome_funcionario_empresa: '',
     itens: [],
-    pago: false,
+    status_pagamento: 'NAO_INFORMADO',
     forma_pagamento: null,
+    data_transacao: formatLocalDateTime(new Date()),
     observacoes: '',
   }
   funcionariosOptions.value = []
@@ -640,10 +689,11 @@ function adicionarProdutoAvulso(novoProduto) {
   if (!novoProduto.nome || !novoProduto.preco) return
   const itens = form.value.itens
   const p = Number(novoProduto.preco)
+  const nomeUpper = normalizeTextoUpper(novoProduto.nome)
 
   const existente = itens.find((i) =>
     !i.produto_id &&
-    (i.nome_produto_congelado || '').toLowerCase() === novoProduto.nome.toLowerCase() &&
+    (i.nome_produto_congelado || '').toLowerCase() === nomeUpper.toLowerCase() &&
     Number(i.preco_unitario_congelado) === p,
   )
   if (existente) {
@@ -652,7 +702,7 @@ function adicionarProdutoAvulso(novoProduto) {
     itens.push({
       _uid: uid(),
       produto_id: null,
-      nome_produto_congelado: novoProduto.nome,
+      nome_produto_congelado: nomeUpper,
       preco_unitario_congelado: p,
       quantidade: 1,
     })
@@ -669,21 +719,21 @@ function adicionarProdutoAvulso(novoProduto) {
 
 .novo-pedido-card {
 
-  --novo-yellow: #ffd54f;
+  --novo-yellow: var(--brand-primary);
 
-  --novo-yellow-strong: #f4b336;
+  --novo-yellow-strong: var(--brand-primary);
 
   --novo-surface: rgba(255, 255, 255, 0.96);
 
-  --novo-outline: rgba(255, 213, 79, 0.28);
+  --novo-outline: var(--brand-accent);
 
   --novo-shadow: 0 18px 36px rgba(32, 25, 10, 0.12);
 
-  --novo-text-strong: #3b2f00;
+  --novo-text-strong: var(--brand-text-strong);
 
-  --novo-text-medium: #6d5a1a;
+  --novo-text-medium: var(--brand-text-muted);
 
-  --novo-text-muted: rgba(59, 47, 0, 0.6);
+  --novo-text-muted: var(--brand-text-muted);
 
   display: flex;
 
@@ -777,7 +827,7 @@ function adicionarProdutoAvulso(novoProduto) {
 
   border-radius: 14px;
 
-  background: rgba(255, 213, 79, 0.16);
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
 
   color: var(--novo-text-medium);
 
@@ -833,7 +883,7 @@ function adicionarProdutoAvulso(novoProduto) {
 }
 
 .novo-pedido__body::-webkit-scrollbar-thumb {
-  background: rgba(244, 179, 54, 0.4);
+  background: color-mix(in srgb, var(--brand-primary) 40%, transparent);
   border-radius: 999px;
 }
 
@@ -858,9 +908,9 @@ function adicionarProdutoAvulso(novoProduto) {
 
 .novo-pedido__block :deep(.q-field--filled .q-field__control) {
   border-radius: 16px;
-  background: rgba(255, 248, 209, 0.9);
-  border: 1px solid rgba(255, 213, 79, 0.3);
-  box-shadow: inset 0 1px 2px rgba(244, 179, 54, 0.16);
+  background: color-mix(in srgb, var(--brand-secondary) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--brand-primary) 16%, transparent);
 }
 
 .novo-pedido__block :deep(.q-field--filled .q-field__control:before),
@@ -930,7 +980,7 @@ function adicionarProdutoAvulso(novoProduto) {
 
   border-radius: 14px;
 
-  background: rgba(255, 245, 196, 0.78);
+  background: color-mix(in srgb, var(--brand-secondary) 70%, transparent);
 
   color: var(--novo-text-medium);
 
@@ -1008,7 +1058,7 @@ function adicionarProdutoAvulso(novoProduto) {
 
 .novo-pedido__item-btn {
 
-  background: rgba(255, 213, 79, 0.26);
+  background: color-mix(in srgb, var(--brand-primary) 26%, transparent);
 
   color: var(--novo-text-strong);
 

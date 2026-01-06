@@ -318,9 +318,6 @@ export const useMainStore = defineStore('main', () => {
     return [...new Set(categorias)].sort()
   })
 
-  buscarProdutosIniciais()
-  buscarClientes()
-
   return {
     produtos,
     clientes,

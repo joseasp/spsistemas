@@ -1,0 +1,23 @@
+create table if not exists public.caixa_operacoes (
+  id uuid,
+  data_movimento date,
+  status text,
+  valor_abertura numeric,
+  timestamp_abertura timestamptz,
+  nome_responsavel_abertura text,
+  valor_fechamento numeric,
+  valor_calculado numeric,
+  timestamp_fechamento timestamptz,
+  nome_responsavel_fechamento text,
+  observacoes text,
+  created_at timestamptz,
+  updated_at timestamptz,
+  data_local date,
+  esperado_por_forma jsonb,
+  contado_por_forma jsonb,
+  diferenca_por_forma jsonb,
+  valor_contado numeric,
+  diferenca_total numeric,
+  reaberto_at timestamptz,
+  reaberto_por text
+);

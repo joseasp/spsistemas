@@ -12,7 +12,14 @@
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
     "build": "quasar build",
-    "postinstall": "quasar prepare"
+    "postinstall": "quasar prepare",
+    "supabase": "tools\\supabase\\supabase.exe",
+    "db:login": "tools\\supabase\\supabase.exe login",
+    "db:link": "powershell -NoProfile -Command \"$token=(Get-Content -Raw supabase/env/.env) -split '`n' | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' } | ForEach-Object { $_.Split('=',2)[1].Trim() }; if (-not $token) { throw 'Missing SUPABASE_ACCESS_TOKEN'; }; $env:SUPABASE_ACCESS_TOKEN=$token; tools\\\\supabase\\\\supabase.exe link --project-ref tnzersrtrzfysaccmiyf\"",
+    "db:push": "powershell -NoProfile -Command \"$token=(Get-Content -Raw supabase/env/.env) -split '`n' | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' } | ForEach-Object { $_.Split('=',2)[1].Trim() }; if (-not $token) { throw 'Missing SUPABASE_ACCESS_TOKEN'; }; $env:SUPABASE_ACCESS_TOKEN=$token; tools\\\\supabase\\\\supabase.exe db push\"",
+    "db:pull": "powershell -NoProfile -Command \"$token=(Get-Content -Raw supabase/env/.env) -split '`n' | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' } | ForEach-Object { $_.Split('=',2)[1].Trim() }; if (-not $token) { throw 'Missing SUPABASE_ACCESS_TOKEN'; }; $env:SUPABASE_ACCESS_TOKEN=$token; tools\\\\supabase\\\\supabase.exe db pull\"",
+    "db:dump": "powershell -NoProfile -Command \"$token=(Get-Content -Raw supabase/env/.env) -split '`n' | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' } | ForEach-Object { $_.Split('=',2)[1].Trim() }; if (-not $token) { throw 'Missing SUPABASE_ACCESS_TOKEN'; }; $env:SUPABASE_ACCESS_TOKEN=$token; tools\\\\supabase\\\\supabase.exe db dump --schema public\"",
+    "db:reset": "powershell -NoProfile -Command \"$token=(Get-Content -Raw supabase/env/.env) -split '`n' | Where-Object { $_ -match '^SUPABASE_ACCESS_TOKEN=' } | ForEach-Object { $_.Split('=',2)[1].Trim() }; if (-not $token) { throw 'Missing SUPABASE_ACCESS_TOKEN'; }; $env:SUPABASE_ACCESS_TOKEN=$token; tools\\\\supabase\\\\supabase.exe db reset\""
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-dialog :model-value="modelValue" @update:model-value="emitClose" :maximized="$q.screen.lt.md">
     <q-card class="dialog-card dialog-card--registrar">
       <div class="dialog-card__header">
@@ -17,7 +17,7 @@
           readonly
           dense
           outlined
-          class="dialog-card__field"
+          class="dialog-card__field input-uppercase"
         />
 
         <q-input
@@ -30,6 +30,15 @@
           label="Valor do pagamento"
           class="dialog-card__field"
           prefix="R$"
+        />
+
+        <q-input
+          v-model="dataPagamento"
+          type="datetime-local"
+          dense
+          outlined
+          label="Data/hora do pagamento"
+          class="dialog-card__field"
         />
 
         <q-select
@@ -52,8 +61,8 @@
           autogrow
           dense
           outlined
-          label="Observações (opcional)"
-          class="dialog-card__field"
+          label="Observa&ccedil;&otilde;es (opcional)"
+          class="dialog-card__field input-uppercase"
         />
       </div>
 
@@ -62,9 +71,9 @@
         <q-btn
           unelevated
           class="dialog-card__btn-salvar"
-          color="warning"
+          color="primary"
           label="Registrar Pagamento"
-          :disable="!valor || !forma"
+          :disable="!valor"
           @click="salvar"
         />
       </div>
@@ -85,6 +94,7 @@ const emit = defineEmits(['update:modelValue', 'salvar'])
 const valor = ref(null)
 const forma = ref(null)
 const obs = ref('')
+const dataPagamento = ref('')
 const clienteNome = ref('')
 
 const formaOptions = computed(() => props.formas.map((f) => ({ label: nomeForma(f), value: f })))
@@ -96,6 +106,7 @@ watch(
       valor.value = null
       obs.value = ''
       forma.value = null
+      dataPagamento.value = formatLocalDateTime(new Date())
       clienteNome.value = props.cliente
     }
   },
@@ -111,13 +122,26 @@ watch(
 function emitClose(v) {
   emit('update:modelValue', v)
 }
+function formatLocalDateTime(date) {
+  const offset = date.getTimezoneOffset() * 60000
+  const local = new Date(date.getTime() - offset)
+  return local.toISOString().slice(0, 16)
+}
+
+function toIsoFromLocal(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
+}
+
 
 function nomeForma(formaAtual) {
   const mapa = {
     DINHEIRO: 'Dinheiro',
     PIX: 'Pix',
-    DEBITO: 'Débito',
-    CREDITO: 'Crédito',
+    DEBITO: 'D\u00e9bito',
+    CREDITO: 'Cr\u00e9dito',
     OUTRO: 'Outro',
   }
   return mapa[formaAtual] || formaAtual
@@ -128,6 +152,7 @@ function salvar() {
     valor: Number(valor.value || 0),
     forma: forma.value || null,
     obs: obs.value || null,
+    data_pagamento: toIsoFromLocal(dataPagamento.value),
   })
   emitClose(false)
 }
@@ -137,10 +162,11 @@ function salvar() {
 .dialog-card {
   width: 460px;
   max-width: 90vw;
-  border-radius: 24px;
-  padding: 24px 28px;
-  background: linear-gradient(180deg, #ffffff 0%, #fff7e6 100%);
-  box-shadow: 0 24px 48px rgba(45, 35, 20, 0.18);
+  border-radius: 18px;
+  padding: 22px 24px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  box-shadow: none;
 }
 
 .dialog-card__header {
@@ -153,11 +179,11 @@ function salvar() {
 .dialog-card__title {
   font-size: 20px;
   font-weight: 700;
-  color: #3a3425;
+  color: var(--brand-text-strong);
 }
 
 .dialog-card__subtitle {
-  color: #8a7c60;
+  color: var(--brand-text-muted);
   font-size: 13px;
   margin-top: 2px;
 }
@@ -170,8 +196,9 @@ function salvar() {
 }
 
 .dialog-card__field :deep(.q-field__control) {
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
 }
 
 .dialog-card__field--select {
@@ -200,9 +227,10 @@ function salvar() {
 .dialog-card__btn-salvar {
   font-weight: 700;
   padding: 10px 18px;
-  border-radius: 14px;
-  background: linear-gradient(115deg, #ffca28, #ffb300);
-  color: #3b2500;
+  border-radius: 12px;
+  background: var(--brand-primary);
+  color: var(--brand-text-strong);
+  box-shadow: none;
 }
 </style>
 

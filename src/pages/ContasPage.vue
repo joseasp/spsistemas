@@ -1,15 +1,15 @@
-﻿<template>
+
+<template>
   <q-page class="contas-page">
     <div class="contas-page__bg" />
 
-        <div class="contas-page__wrapper">
+    <div class="contas-page__wrapper">
       <div v-if="isMobile" class="mobile-toggle">
         <q-btn-toggle
           v-model="mobileSection"
           spread
           rounded
           unelevated
-          toggle-color="warning"
           color="white"
           text-color="grey-7"
           class="mobile-toggle__buttons"
@@ -17,12 +17,12 @@
         />
       </div>
 
-      <div class="row q-col-gutter-xl contas-page__grid">
+      <div class="row q-col-gutter-x-xl contas-page__grid">
         <!-- Coluna de clientes -->
         <div
           class="col-12 col-lg-4"
           :class="{ 'mobile-panel': isMobile }"
-          v-show="!isMobile || mobileSection === 'clientes'"
+          v-show="!focoExtrato && (!isMobile || mobileSection === 'clientes')"
         >
           <section class="painel painel--clientes">
             <div class="painel__header">
@@ -56,7 +56,7 @@
             </div>
 
             <div class="painel__lista">
-              <q-scroll-area class="painel__scroll">
+              <q-scroll-area v-if="!isMobile" class="painel__scroll">
                 <q-list separator>
                   <q-item
                     v-for="c in clientesFiltrados"
@@ -88,9 +88,41 @@
                   Nenhum cliente encontrado.
                 </div>
               </q-scroll-area>
+              <div v-else class="painel__scroll painel__scroll--native">
+                <q-list separator>
+                  <q-item
+                    v-for="c in clientesFiltrados"
+                    :key="c.id"
+                    clickable
+                    :active="clienteSel && clienteSel.id === c.id"
+                    @click="selecionar(c)"
+                    class="cliente-item"
+                    :class="[
+                      clienteSel && clienteSel.id === c.id ? 'cliente-item--ativo' : '',
+                      'cliente-item--' + statusCliente(c),
+                    ]"
+                  >
+                    <q-item-section>
+                      <div class="cliente-item__nome">{{ c.nome }}</div>
+                      <div class="cliente-item__saldo" :class="saldoClasse(c.saldo)">
+                        Saldo: {{ formatCurrency(c.saldo) }}
+                      </div>
+                    </q-item-section>
+                    <q-item-section side>
+                      <span class="cliente-item__badge" :class="'cliente-item__badge--' + statusCliente(c)">
+                        {{ etiquetaCliente(c) }}
+                      </span>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+
+                <div v-if="!loadingClientes && !clientesFiltrados.length" class="painel__vazio">
+                  Nenhum cliente encontrado.
+                </div>
+              </div>
 
               <q-inner-loading :showing="loadingClientes">
-                <q-spinner-dots size="32px" color="warning" />
+                <q-spinner-dots size="32px" class="text-brand" />
               </q-inner-loading>
             </div>
           </section>
@@ -98,8 +130,8 @@
 
         <!-- Coluna de extrato -->
         <div
-          class="col-12 col-lg-8"
-          :class="{ 'mobile-panel': isMobile }"
+          class="col-12"
+          :class="[focoExtrato ? 'col-lg-12' : 'col-lg-8', { 'mobile-panel': isMobile }]"
           v-show="!isMobile || mobileSection === 'extrato'"
         >
           <section class="painel painel--extrato">
@@ -110,23 +142,81 @@
                   Saldo atual: {{ formatCurrency(clienteSel ? saldo : 0) }}
                 </div>
               </div>
-              <q-btn
-                color="warning"
-                unelevated
-                class="painel__registrar"
-                icon="add_circle"
-                label="Registrar Pagamento"
-                :disable="!clienteSel"
-                @click="abrirPagamento = true"
-              />
+              <div class="painel__acoes">
+                <q-btn
+                  outline
+                  class="painel__reconciliar"
+                  :class="{ 'is-mobile': isMobile }"
+                  icon="sync"
+                  :label="isMobile ? '' : 'Reconciliar'"
+                  :round="isMobile"
+                  :dense="isMobile"
+                  :title="isMobile ? 'Reconciliar' : undefined"
+                  :disable="!clienteSel || reconciliando"
+                  :loading="reconciliando"
+                  @click="reconciliarPagamentosConfirm"
+                />
+                <q-btn
+                  unelevated
+                  class="painel__registrar"
+                  :class="{ 'is-mobile': isMobile }"
+                  icon="add_circle"
+                  :label="isMobile ? '' : 'Registrar Pagamento'"
+                  :round="isMobile"
+                  :dense="isMobile"
+                  :title="isMobile ? 'Registrar pagamento' : undefined"
+                  :disable="!clienteSel || reconciliando"
+                  @click="abrirPagamento = true"
+                />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  class="painel__icon-btn"
+                  :class="{ 'is-active': mostrarBuscaExtrato }"
+                  icon="search"
+                  :disable="!clienteSel"
+                  @click="toggleBuscaExtrato"
+                  aria-label="Buscar no extrato"
+                  :title="mostrarBuscaExtrato ? 'Ocultar busca' : 'Buscar no extrato'"
+                />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  class="painel__icon-btn"
+                  :class="{ 'is-active': focoExtrato }"
+                  icon="view_sidebar"
+                  :disable="isMobile"
+                  @click="focoExtrato = !focoExtrato"
+                  aria-label="Foco no extrato"
+                  :title="focoExtrato ? 'Mostrar clientes' : 'Foco no extrato'"
+                />
+              </div>
+            </div>
+
+            <div v-if="mostrarBuscaExtrato" class="painel__busca-extrato">
+              <q-input
+                v-model="buscaExtrato"
+                dense
+                outlined
+                rounded
+                clearable
+                placeholder="Buscar no extrato"
+                class="painel__busca-input input-uppercase"
+              >
+                <template #prepend>
+                  <q-icon name="search" />
+                </template>
+              </q-input>
             </div>
 
             <div class="painel__tabs">
               <button
                 v-for="opt in abaOptions"
                 :key="opt.value"
-                class="aba-btn"
-                :class="{ 'aba-btn--ativa': abasAtivas.includes(opt.value) }"
+                :class="['aba-btn', 'aba-btn--' + opt.value, { 'aba-btn--ativa': abasAtivas.includes(opt.value) }]"
+                :style="{ '--aba-color': abaColor(opt.value) }"
                 type="button"
                 @click="toggleAba(opt.value)"
               >
@@ -136,7 +226,7 @@
 
             <div class="painel__conteudo">
               <q-inner-loading :showing="loadingExtrato">
-                <q-spinner-dots size="40px" color="warning" />
+                <q-spinner-dots size="40px" class="text-brand" />
               </q-inner-loading>
 
               <div v-if="!loadingExtrato && !clienteSel" class="painel__placeholder">
@@ -147,18 +237,26 @@
 
               <div v-else-if="!loadingExtrato && clienteSel && !extratoAgrupado.length" class="painel__placeholder">
                 <q-icon name="receipt_long" size="48px" class="q-mb-md" />
-                <div class="text-subtitle1">Nenhum lançamento nesta visualização</div>
+                <div class="text-subtitle1">Nenhum lan&ccedil;amento nesta visualiza&ccedil;&atilde;o</div>
                 <div class="text-body2 text-grey-6 q-mt-xs">Registre novos pedidos ou pagamentos.</div>
               </div>
 
-              <q-scroll-area v-else class="painel__scroll">
+              <q-scroll-area v-else-if="!isMobile" class="painel__scroll">
                 <div v-for="grupo in extratoAgrupado" :key="grupo.key" class="extrato-grupo">
                   <div class="extrato-grupo__titulo">{{ grupo.label }}</div>
 
-                  <div v-for="linha in grupo.itens" :key="linha.tipo + '-' + linha.id" class="extrato-card">
+                  <div
+                    v-for="linha in grupo.itens"
+                    :key="linha.tipo + '-' + linha.id"
+                    class="extrato-card"
+                    :style="{ '--accent': linhaAccent(linha) }"
+                    role="button"
+                    @click="abrirLinha(linha)"
+                  >
+                    <span class="extrato-card__accent" aria-hidden="true" />
                     <div class="extrato-card__main">
                       <div class="extrato-card__icone" :class="'extrato-card__icone--' + linhaIcone(linha).tono">
-                        <q-icon :name="linhaIcone(linha).icone" size="22px" />
+                        <q-icon :name="linhaIcone(linha).icone" size="20px" />
                       </div>
 
                       <div class="extrato-card__info">
@@ -167,7 +265,7 @@
                           {{ linhaDescricao(linha) }}
                         </div>
                         <div class="extrato-card__meta">
-                          <q-badge :color="linhaEtiqueta(linha).cor" :text-color="linhaEtiqueta(linha).texto" class="q-mr-sm">
+                          <q-badge class="extrato-card__badge" :style="linhaEtiqueta(linha).style">
                             {{ linhaEtiqueta(linha).label }}
                           </q-badge>
                           <span v-if="linhaInfoExtra(linha)" class="extrato-card__extra">{{ linhaInfoExtra(linha) }}</span>
@@ -175,55 +273,116 @@
                         </div>
                       </div>
 
-                      <div class="extrato-card__valor" :class="linhaValorClasse(linha)">
-                        {{ linhaValorFormatado(linha) }}
+                      <div class="extrato-card__side">
+                        <div class="extrato-card__valor" :class="linhaValorClasse(linha)">
+                          {{ linhaValorFormatado(linha) }}
+                        </div>
+                        <div class="extrato-card__acoes" @click.stop>
+                          <template v-if="linha.tipo === 'VENDA'">
+                            <q-btn
+                              size="sm"
+                              dense
+                              no-caps
+                              outline
+                              icon="payments"
+                              class="extrato-card__btn extrato-card__btn--brand"
+                              :label="acaoVendaLabel(linha)"
+                              :disable="vendaBloqueada(linha)"
+                              @click.stop="statusFinanceiro(linha) === 'PAGO' ? marcarVendaNaoPagaConfirm(linha) : escolherForma(linha)"
+                            />
+                          </template>
+                          <template v-else>
+                            <q-btn
+                              v-if="!linha.estornado"
+                              flat
+                              round
+                              dense
+                              size="sm"
+                              color="negative"
+                              icon="undo"
+                              class="extrato-card__icon-btn"
+                              @click.stop="onEstornar(linha)"
+                            >
+                              <q-tooltip>Estornar</q-tooltip>
+                            </q-btn>
+                          </template>
+                        </div>
                       </div>
-                    </div>
-
-                    <div class="extrato-card__acoes">
-                      <template v-if="linha.tipo === 'VENDA'">
-                        <q-btn
-                          size="sm"
-                          color="warning"
-                          outline
-                          icon="payments"
-                          class="q-mr-sm"
-                          :label="linha.status_pagamento === 'PAGO' ? 'Marcar não pago' : 'Marcar pago'"
-                          @click="linha.status_pagamento === 'PAGO' ? marcarVendaNaoPagaConfirm(linha) : escolherForma(linha)"
-                        />
-                        <q-btn
-                          size="sm"
-                          color="primary"
-                          flat
-                          icon="list_alt"
-                          label="Detalhes"
-                          @click="abrirPedido(linha)"
-                        />
-                      </template>
-                      <template v-else>
-                        <q-btn
-                          v-if="!linha.estornado"
-                          size="sm"
-                          color="negative"
-                          flat
-                          icon="undo"
-                          label="Estornar"
-                          class="q-mr-sm"
-                          @click="onEstornar(linha)"
-                        />
-                        <q-btn
-                          size="sm"
-                          color="primary"
-                          flat
-                          icon="info"
-                          label="Detalhes"
-                          @click="abrirDetalhePagamento(linha)"
-                        />
-                      </template>
                     </div>
                   </div>
                 </div>
               </q-scroll-area>
+              <div v-else class="painel__scroll painel__scroll--native">
+                <div v-for="grupo in extratoAgrupado" :key="grupo.key" class="extrato-grupo">
+                  <div class="extrato-grupo__titulo">{{ grupo.label }}</div>
+
+                  <div
+                    v-for="linha in grupo.itens"
+                    :key="linha.tipo + '-' + linha.id"
+                    class="extrato-card"
+                    :style="{ '--accent': linhaAccent(linha) }"
+                    role="button"
+                    @click="abrirLinha(linha)"
+                  >
+                    <span class="extrato-card__accent" aria-hidden="true" />
+                    <div class="extrato-card__main">
+                      <div class="extrato-card__icone" :class="'extrato-card__icone--' + linhaIcone(linha).tono">
+                        <q-icon :name="linhaIcone(linha).icone" size="20px" />
+                      </div>
+
+                      <div class="extrato-card__info">
+                        <div class="extrato-card__titulo">{{ linhaTitulo(linha) }}</div>
+                        <div v-if="linhaDescricao(linha)" class="extrato-card__descricao">
+                          {{ linhaDescricao(linha) }}
+                        </div>
+                        <div class="extrato-card__meta">
+                          <q-badge class="extrato-card__badge" :style="linhaEtiqueta(linha).style">
+                            {{ linhaEtiqueta(linha).label }}
+                          </q-badge>
+                          <span v-if="linhaInfoExtra(linha)" class="extrato-card__extra">{{ linhaInfoExtra(linha) }}</span>
+                          <span v-if="linhaFuncionario(linha)" class="extrato-card__extra extrato-card__extra--func">Func.: {{ linhaFuncionario(linha) }}</span>
+                        </div>
+                      </div>
+
+                      <div class="extrato-card__side">
+                        <div class="extrato-card__valor" :class="linhaValorClasse(linha)">
+                          {{ linhaValorFormatado(linha) }}
+                        </div>
+                        <div class="extrato-card__acoes" @click.stop>
+                          <template v-if="linha.tipo === 'VENDA'">
+                            <q-btn
+                              size="sm"
+                              dense
+                              no-caps
+                              outline
+                              icon="payments"
+                              class="extrato-card__btn extrato-card__btn--brand"
+                              :label="acaoVendaLabel(linha)"
+                              :disable="vendaBloqueada(linha)"
+                              @click.stop="statusFinanceiro(linha) === 'PAGO' ? marcarVendaNaoPagaConfirm(linha) : escolherForma(linha)"
+                            />
+                          </template>
+                          <template v-else>
+                            <q-btn
+                              v-if="!linha.estornado"
+                              flat
+                              round
+                              dense
+                              size="sm"
+                              color="negative"
+                              icon="undo"
+                              class="extrato-card__icon-btn"
+                              @click.stop="onEstornar(linha)"
+                            >
+                              <q-tooltip>Estornar</q-tooltip>
+                            </q-btn>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -255,7 +414,7 @@ const filtroOptions = [
   { value: 'todos', label: 'Todos' },
   { value: 'devendo', label: 'Devendo' },
   { value: 'quitado', label: 'Quitado' },
-  { value: 'credito', label: 'Crédito' },
+  { value: 'credito', label: 'Cr\u00e9dito' },
 ]
 
 const abaOptions = [
@@ -276,11 +435,16 @@ const {
   carregarClientes,
   carregarExtrato,
   carregarItens,
+  listarPagamentosAplicados,
   startRealtime,
   registrarPagamento,
   marcarVendaPaga,
   marcarVendaNaoPaga,
   estornarPagamento,
+  excluirPagamentoDefinitivo,
+  reconciliarPagamentosCliente,
+  listarVendasAplicadasPorPagamento,
+  reconciliando,
   loadingClientes,
   loadingExtrato,
 } = useContasReceber()
@@ -288,10 +452,16 @@ const {
 const $q = useQuasar()
 const isMobile = computed(() => $q.screen.lt.md)
 const mobileSection = ref('clientes')
+const buscaExtrato = ref('')
+const mostrarBuscaExtrato = ref(false)
+const focoExtrato = ref(false)
 const mobileToggleOptions = [
   { label: 'Clientes', value: 'clientes' },
   { label: 'Extrato', value: 'extrato' },
 ]
+
+const PAGAMENTO_DIRETO_TAG = 'PAGAMENTO DIRETO DA VENDA'
+
 
 onMounted(async () => {
   await carregarClientes()
@@ -304,11 +474,28 @@ const abrirPagamento = ref(false)
 const detalhePagamentoRef = ref(null)
 const detalhePedidoRef = ref(null)
 const carregandoItens = ref({})
+const VENDA_ACAO_COOLDOWN_MS = 800
+const vendaAcoesPendentes = new Set()
+
+function iniciarAcaoVenda(id) {
+  if (!id) return false
+  if (vendaAcoesPendentes.has(id)) return false
+  vendaAcoesPendentes.add(id)
+  return true
+}
+
+function finalizarAcaoVenda(id) {
+  if (!id) return
+  setTimeout(() => vendaAcoesPendentes.delete(id), VENDA_ACAO_COOLDOWN_MS)
+}
+
 
 watch(isMobile, (novo) => {
   if (!novo) {
     mobileSection.value = 'clientes'
+    return
   }
+  focoExtrato.value = false
 })
 
 watch(
@@ -320,19 +507,34 @@ watch(
   },
 )
 
+function isPagamentoDireto(linha) {
+  if (linha?.tipo !== 'PAGAMENTO') return false
+  if (!linha?.origem_transacao_id) return false
+  const obs = String(linha.observacao || '').toUpperCase()
+  return obs.includes(PAGAMENTO_DIRETO_TAG)
+}
 const linhasFiltradas = computed(() => {
   const filtros = new Set(abasAtivas.value)
+  const termo = normalizarTexto(buscaExtrato.value)
   return extrato.value.filter((linha) => {
+    if (isPagamentoDireto(linha)) return false
+    let statusOk = false
     if (linha.tipo === 'PAGAMENTO') {
-      return filtros.has('pagamentos')
+      statusOk = filtros.has('pagamentos')
+    } else {
+      const status = statusFinanceiro(linha)
+      if (status === 'PAGO') {
+        statusOk = filtros.has('pagas')
+      } else if (status === 'CANCELADA') {
+        statusOk = filtros.has('pendentes')
+      } else {
+        statusOk = filtros.has('pendentes')
+      }
     }
-    if (linha.status_pagamento === 'PAGO') {
-      return filtros.has('pagas')
-    }
-    if (linha.status_pagamento === 'CANCELADA') {
-      return filtros.has('pendentes')
-    }
-    return filtros.has('pendentes')
+    if (!statusOk) return false
+    if (!termo) return true
+    if (linha.tipo === 'VENDA' && !itensPorVenda.value[linha.id]) return true
+    return textoBusca(linha).includes(termo)
   })
 })
 
@@ -380,6 +582,54 @@ function toggleAba(valor) {
   }
 }
 
+function toggleBuscaExtrato() {
+  mostrarBuscaExtrato.value = !mostrarBuscaExtrato.value
+  if (!mostrarBuscaExtrato.value) {
+    buscaExtrato.value = ""
+  }
+}
+
+const STATUS_CORES = {
+  pagamento: '#1e88e5',
+  pago: '#2e7d32',
+  pendente: '#f9a825',
+  cancelado: '#9e9e9e',
+  estornado: '#90a4ae',
+  naoInformado: '#b0bec5',
+}
+
+const ABA_CORES = {
+  pendentes: STATUS_CORES.pendente,
+  pagas: STATUS_CORES.pago,
+  pagamentos: STATUS_CORES.pagamento,
+}
+
+function abaColor(valor) {
+  return ABA_CORES[valor] || 'var(--brand-primary)'
+}
+
+function abrirLinha(linha) {
+  if (linha?.tipo === 'PAGAMENTO') {
+    abrirDetalhePagamento(linha)
+    return
+  }
+  abrirPedido(linha)
+}
+
+function linhaAccent(linha) {
+  if (linha?.tipo === 'PAGAMENTO') return STATUS_CORES.pagamento
+  const status = statusFinanceiro(linha)
+  if (status === 'PAGO') return STATUS_CORES.pago
+  if (status === 'PARCIAL') return STATUS_CORES.pendente
+  if (status === 'CANCELADA') return STATUS_CORES.cancelado
+  if (status === 'NAO_INFORMADO') return STATUS_CORES.naoInformado
+  return STATUS_CORES.pendente
+}
+
+function acaoVendaLabel(linha) {
+  return statusFinanceiro(linha) === 'PAGO' ? 'N\u00e3o pago' : 'Pagar'
+}
+
 function selecionar(cliente) {
   clienteSel.value = cliente
   carregarExtrato()
@@ -402,7 +652,7 @@ function statusCliente(cliente) {
 function etiquetaCliente(cliente) {
   const status = statusCliente(cliente)
   if (status === 'devendo') return 'Devendo'
-  if (status === 'credito') return 'Crédito'
+  if (status === 'credito') return 'Cr\u00e9dito'
   return 'Quitado'
 }
 
@@ -426,30 +676,51 @@ function labelGrupo(dataStr) {
   })
 }
 
+function normalizarTexto(valor) {
+  const texto = String(valor || "")
+  const normalizado = typeof texto.normalize === "function" ? texto.normalize("NFD") : texto
+  return normalizado.replace(/[\u0300-\u036f]/g, "").toLowerCase()
+}
+
+function textoBusca(linha) {
+  const partes = [
+    linhaTitulo(linha),
+    linhaDescricao(linha),
+    linhaInfoExtra(linha),
+    linhaFuncionario(linha),
+    linha.observacao,
+    linha.observacao_estorno,
+    linha.nome_cliente_avulso,
+    nomeForma(linha.forma_pagamento),
+  ].filter(Boolean)
+  return normalizarTexto(partes.join(" "))
+}
+
 function linhaTitulo(linha) {
   if (linha.tipo === 'PAGAMENTO') {
-    return linha.estornado ? 'Pagamento estornado' : 'Pagamento recebido'
+    return linha.estornado ? 'Pagamento estornado' : 'Pagamento'
   }
-  if (linha.status_pagamento === 'PAGO') return 'Venda quitada'
-  if (linha.status_pagamento === 'CANCELADA') return 'Venda cancelada'
-  return 'Venda não paga'
+  const status = statusFinanceiro(linha)
+  if (status === 'CANCELADA') return 'Venda cancelada'
+  return 'Venda'
 }
 
 function linhaDescricao(linha) {
   if (linha.tipo === 'PAGAMENTO') {
     if (linha.estornado) return linha.observacao_estorno || linha.observacao || 'Estorno registrado'
-    return linha.observacao || nomeForma(linha.forma_pagamento) || 'Pagamento'
+    return linha.observacao || null
   }
   const itens = itensPorVenda.value[linha.id]
   if (itens?.length) {
     const resumo = itens
       .map((item) => `${item.quantidade}x ${item.nome_produto_congelado || 'Item'}`)
       .join(', ')
-    return resumo.length > 90 ? `${resumo.slice(0, 87)}...` : resumo
+    const limiteResumo = 70
+    return resumo.length > limiteResumo ? `${resumo.slice(0, limiteResumo - 3)}...` : resumo
   }
   if (carregandoItens.value[linha.id]) return 'Carregando itens...'
   if (linha.observacao) return linha.observacao
-  return 'Sem observações'
+  return 'Sem observa\u00e7\u00f5es'
 }
 
 function linhaInfoExtra(linha) {
@@ -462,12 +733,24 @@ function linhaInfoExtra(linha) {
       const estornoHora = linha.data_estorno
         ? new Date(linha.data_estorno).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         : hora
-      return `Estornado • ${estornoHora}`
+      return 'Estornado ' + estornoHora
     }
     return hora
   }
-  if (linha.forma_pagamento && linha.status_pagamento === 'PAGO') {
+  const status = statusFinanceiro(linha)
+  if (linha.forma_pagamento && status === 'PAGO') {
     return nomeForma(linha.forma_pagamento)
+  }
+  if (status === 'PARCIAL') {
+    const saldoAberto = Number(linha.saldo_aberto) || 0
+    const valorTotal = Number(linha.valor) || 0
+    const pago = Number(linha.valor_pago ?? (valorTotal ? valorTotal - saldoAberto : 0))
+    if (saldoAberto > 0 && pago > 0) {
+      return 'Pago ' + formatCurrency(pago) + ' | Falta ' + formatCurrency(saldoAberto)
+    }
+    if (saldoAberto > 0) {
+      return 'Falta ' + formatCurrency(saldoAberto)
+    }
   }
   return null
 }
@@ -477,59 +760,94 @@ function linhaFuncionario(linha) {
 }
 
 function linhaEtiqueta(linha) {
+  const badge = (label, cor, texto = '#ffffff') => ({
+    label,
+    style: {
+      background: cor,
+      color: texto,
+    },
+  })
   if (linha.tipo === 'PAGAMENTO') {
-    if (linha.estornado) return { label: 'Estornado', cor: 'grey-5', texto: 'black' }
-    return { label: 'Pagamento', cor: 'primary', texto: 'white' }
+    if (linha.estornado) return badge('Estornado', STATUS_CORES.estornado, '#263238')
+    const formaLabel = nomeForma(linha.forma_pagamento)
+    return badge(formaLabel || 'Pagamento', STATUS_CORES.pagamento)
   }
-  if (linha.status_pagamento === 'PAGO') {
-    return { label: 'Quitada', cor: 'positive', texto: 'white' }
+  const status = statusFinanceiro(linha)
+  if (status === 'PAGO') {
+    return badge('Quitada', STATUS_CORES.pago)
   }
-  if (linha.status_pagamento === 'CANCELADA') {
-    return { label: 'Cancelada', cor: 'grey-6', texto: 'black' }
+  if (status === 'PARCIAL') {
+    return badge('Parcial', STATUS_CORES.pendente, '#3a2a00')
   }
-  return { label: 'Pendente', cor: 'warning', texto: 'black' }
+  if (status === 'NAO_INFORMADO') {
+    return badge('N\u00e3o informado', STATUS_CORES.naoInformado, '#263238')
+  }
+  if (status === 'CANCELADA') {
+    return badge('Cancelada', STATUS_CORES.cancelado, '#263238')
+  }
+  return badge('Pendente', STATUS_CORES.pendente, '#3a2a00')
 }
 
 function linhaValorFormatado(linha) {
   const valor = Number(linha.valor || 0)
   const moeda = formatCurrency(Math.abs(valor))
   if (linha.tipo === 'PAGAMENTO') {
-    return linha.estornado ? moeda : `- ${moeda}`
+    return linha.estornado ? moeda : '- ' + moeda
   }
-  if (linha.status_pagamento === 'PAGO') return `+ ${moeda}`
-  if (linha.status_pagamento === 'CANCELADA') return moeda
-  return `+ ${moeda}`
+  const status = statusFinanceiro(linha)
+  if (status === 'PAGO') return '+ ' + moeda
+  if (status === 'CANCELADA') return moeda
+  return '+ ' + moeda
 }
+
 
 function linhaValorClasse(linha) {
   if (linha.tipo === 'PAGAMENTO') {
     if (linha.estornado) return 'extrato-card__valor--estornado'
     return 'extrato-card__valor--negativo'
   }
-  if (linha.status_pagamento === 'PAGO') return 'extrato-card__valor--positivo'
-  if (linha.status_pagamento === 'CANCELADA') return 'extrato-card__valor--neutro'
+  const status = statusFinanceiro(linha)
+  if (status === 'PAGO') return 'extrato-card__valor--positivo'
+  if (status === 'CANCELADA') return 'extrato-card__valor--neutro'
+  if (status === 'PARCIAL') return 'extrato-card__valor--pendente'
+  if (status === 'NAO_INFORMADO') return 'extrato-card__valor--pendente'
   return 'extrato-card__valor--pendente'
 }
+
 
 function linhaIcone(linha) {
   if (linha.tipo === 'PAGAMENTO') {
     if (linha.estornado) return { icone: 'history', tono: 'estornado' }
     return { icone: 'payments', tono: 'pagamento' }
   }
-  if (linha.status_pagamento === 'PAGO') return { icone: 'check_circle', tono: 'pago' }
-  if (linha.status_pagamento === 'CANCELADA') return { icone: 'block', tono: 'cancelado' }
+  const status = statusFinanceiro(linha)
+  if (status === 'PAGO') return { icone: 'check_circle', tono: 'pago' }
+  if (status === 'PARCIAL') return { icone: 'pie_chart', tono: 'pendente' }
+  if (status === 'NAO_INFORMADO') return { icone: 'help', tono: 'pendente' }
+  if (status === 'CANCELADA') return { icone: 'block', tono: 'cancelado' }
   return { icone: 'hourglass_top', tono: 'pendente' }
 }
+
 
 function nomeForma(forma) {
   const mapa = {
     DINHEIRO: 'Dinheiro',
     PIX: 'Pix',
-    DEBITO: 'Débito',
-    CREDITO: 'Crédito',
+    DEBITO: 'D\u00e9bito',
+    CREDITO: 'Cr\u00e9dito',
     OUTRO: 'Outro',
   }
   return mapa[forma] || null
+}
+
+function statusFinanceiro(linha) {
+  return linha.status_financeiro || linha.status_pagamento
+}
+
+function vendaBloqueada(linha) {
+  if (linha.tipo !== 'VENDA') return false
+  if (Number(linha.valor_pago) > 0) return true
+  return statusFinanceiro(linha) === 'PARCIAL'
 }
 
 async function ensureItens(vendaId) {
@@ -556,30 +874,66 @@ async function solicitarConfirmacao({ titulo, mensagem, okLabel, okColor = 'prim
   })
 }
 
-async function onSalvarPagamento({ valor, forma, obs }) {
+async function onSalvarPagamento({ valor, forma, obs, data_pagamento }) {
   try {
-    await registrarPagamento({ valor, forma, obs })
+    await registrarPagamento({ valor, forma, obs, data_pagamento })
     $q.notify({ type: 'positive', message: 'Pagamento registrado.' })
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Não foi possível registrar o pagamento.' })
+    $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel registrar o pagamento.' })
   }
 }
 
-async function marcarVendaNaoPagaConfirm(linha) {
+async function reconciliarPagamentosConfirm() {
+  if (!clienteSel.value?.id) return
   const confirmado = await solicitarConfirmacao({
-    titulo: 'Marcar como não paga',
-    mensagem: 'Tem certeza de que deseja marcar esta venda como não paga?',
-    okLabel: 'Sim, marcar',
-    okColor: 'warning',
+    titulo: 'Reconciliar pagamentos',
+    mensagem: 'Isso vai aplicar pagamentos antigos sem v\u00ednculo para este cliente. Deseja continuar?',
+    okLabel: 'Reconciliar',
+    okColor: 'primary',
   })
   if (!confirmado) return
   try {
-    await marcarVendaNaoPaga(linha)
-    $q.notify({ type: 'positive', message: 'Venda marcada como não paga.' })
+    const resultado = await reconciliarPagamentosCliente({ apenasSemAlocacao: true })
+    if (resultado?.suportaAlocacoes === false) {
+      $q.notify({ type: 'warning', message: 'Tabela de aloca\u00e7\u00f5es n\u00e3o dispon\u00edvel. Atualize o banco.' })
+      return
+    }
+    const aplicados = resultado?.pagamentosProcessados ?? 0
+    const ignorados = resultado?.pagamentosIgnorados ?? 0
+    const total = formatCurrency(resultado?.totalAplicado ?? 0)
+    $q.notify({ type: 'positive', message: `Reconcilia\u00e7\u00e3o conclu\u00edda. ${aplicados} pagamento(s) aplicados, ${ignorados} ignorado(s). Total ${total}.` })
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Falha ao marcar a venda como não paga.' })
+    $q.notify({ type: 'negative', message: 'Falha ao reconciliar pagamentos.' })
+  }
+}
+
+
+async function marcarVendaNaoPagaConfirm(linha) {
+  if (!iniciarAcaoVenda(linha?.id)) return
+  const confirmado = await solicitarConfirmacao({
+    titulo: 'Marcar como n\u00e3o paga',
+    mensagem: 'Tem certeza de que deseja marcar esta venda como n\u00e3o paga?',
+    okLabel: 'Sim, marcar',
+    okColor: 'warning',
+  })
+  if (!confirmado) {
+    finalizarAcaoVenda(linha?.id)
+    return
+  }
+  try {
+    await marcarVendaNaoPaga(linha)
+    $q.notify({ type: 'positive', message: 'Venda marcada como n\u00e3o paga.' })
+  } catch (err) {
+    console.error(err)
+    if (err?.code === 'PAGAMENTO_ALOCADO') {
+      $q.notify({ type: 'warning', message: 'Venda possui pagamentos aplicados. Ajuste pelo contas a receber.' })
+      return
+    }
+    $q.notify({ type: 'negative', message: 'Falha ao marcar a venda como n\u00e3o paga.' })
+  } finally {
+    finalizarAcaoVenda(linha?.id)
   }
 }
 
@@ -593,7 +947,7 @@ async function onEstornar(linha) {
   if (!confirmado) return
 
   const autorizado = await solicitarSenha({
-    titulo: 'Autorização necessária',
+    titulo: 'Autoriza\u00e7\u00e3o necess\u00e1ria',
     mensagem: 'Informe a senha para estornar o pagamento.',
   })
   if (!autorizado) {
@@ -606,7 +960,7 @@ async function onEstornar(linha) {
     if (resultado?.estornoPersistido === false) {
       $q.notify({
         type: 'warning',
-        message: 'Pagamento estornado, mas o histórico não pôde ser preservado. Atualize o banco para manter o registro.',
+        message: 'Pagamento estornado, mas o hist\u00f3rico n\u00e3o p\u00f4de ser preservado. Atualize o banco para manter o registro.',
       })
     } else {
       $q.notify({ type: 'positive', message: 'Pagamento estornado.' })
@@ -617,31 +971,91 @@ async function onEstornar(linha) {
   }
 }
 
+async function excluirPagamentoDefinitivoConfirm(linha) {
+  const confirmado = await solicitarConfirmacao({
+    titulo: 'Excluir pagamento definitivo',
+    mensagem: 'Isso remove o pagamento do hist\u00f3rico. Deseja continuar?',
+    okLabel: 'Excluir',
+    okColor: 'negative',
+  })
+  if (!confirmado) return
+
+  const autorizado = await solicitarSenha({
+    titulo: 'Autoriza\u00e7\u00e3o necess\u00e1ria',
+    mensagem: 'Informe a senha para excluir o pagamento.',
+  })
+  if (!autorizado) {
+    $q.notify({ type: 'negative', message: 'Senha incorreta. Exclus\u00e3o cancelada.' })
+    return
+  }
+
+  try {
+    await excluirPagamentoDefinitivo({ id: linha.id })
+    $q.notify({ type: 'positive', message: 'Pagamento exclu\u00eddo.' })
+  } catch (err) {
+    console.error(err)
+    if (err?.code === 'ESTORNO_NAO_SUPORTADO') {
+      $q.notify({ type: 'warning', message: 'Estorno n\u00e3o suportado no banco atual.' })
+      return
+    }
+    if (err?.code === 'PAGAMENTO_NAO_ESTORNADO') {
+      $q.notify({ type: 'warning', message: 'Pagamento precisa estar estornado para excluir.' })
+      return
+    }
+    $q.notify({ type: 'negative', message: 'Falha ao excluir pagamento.' })
+  }
+}
+
 async function abrirPedido(linha) {
   try {
     await ensureItens(linha.id)
     const itens = itensPorVenda.value[linha.id] || []
+    let pagamentos = []
+    try {
+      const resultado = await listarPagamentosAplicados(linha.id)
+      pagamentos = resultado?.pagamentos || []
+    } catch (error) {
+      console.error('Falha ao buscar pagamentos aplicados', error)
+    }
     detalhePedidoRef.value?.abrir({
       itens,
       total: Number(linha.valor || 0),
       funcionario: linha.nome_funcionario_empresa || null,
       cliente: clienteSel.value?.nome || linha.nome_cliente_avulso || '',
       formaPagamento: linha.forma_pagamento || null,
-      status: linha.status_pagamento || '',
+      status: statusFinanceiro(linha) || linha.status_pagamento || '',
       data: linha.data || null,
       observacao: linha.observacao || null,
+      valorPago: linha.valor_pago ?? null,
+      saldoAberto: linha.saldo_aberto ?? null,
+      pagamentos,
     })
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Não foi possível carregar os itens do pedido.' })
+    $q.notify({ type: 'negative', message: 'N\u00e3o foi poss\u00edvel carregar os itens do pedido.' })
   }
 }
 
-function abrirDetalhePagamento(linha) {
-  detalhePagamentoRef.value?.abrir(linha)
+async function abrirDetalhePagamento(linha) {
+  try {
+    let vendas = []
+    let suportaAlocacoes = true
+    if (linha?.id) {
+      const resultado = await listarVendasAplicadasPorPagamento(linha.id)
+      vendas = resultado?.vendas || []
+      suportaAlocacoes = resultado?.suportaAlocacoes !== false
+    }
+    const onExcluir = linha?.estornado ? () => excluirPagamentoDefinitivoConfirm(linha) : null
+    detalhePagamentoRef.value?.abrir(linha, { vendas, suportaAlocacoes, onExcluir })
+  } catch (err) {
+    console.error(err)
+    detalhePagamentoRef.value?.abrir(linha, { vendas: [], suportaAlocacoes: false })
+  }
 }
 
 function escolherForma(linhaVenda) {
+  const vendaId = linhaVenda?.id
+  if (!iniciarAcaoVenda(vendaId)) return
   const opcoes = FORMAS.map((forma) => ({ label: nomeForma(forma) || forma, value: forma }))
   $q.dialog({
     title: 'Forma de pagamento',
@@ -656,6 +1070,7 @@ function escolherForma(linhaVenda) {
   }).onOk(async (forma) => {
     if (!forma) {
       $q.notify({ type: 'warning', message: 'Selecione uma forma de pagamento.' })
+      finalizarAcaoVenda(vendaId)
       return
     }
     const confirmado = await solicitarConfirmacao({
@@ -664,7 +1079,10 @@ function escolherForma(linhaVenda) {
       okLabel: 'Confirmar',
       okColor: 'positive',
     })
-    if (!confirmado) return
+    if (!confirmado) {
+      finalizarAcaoVenda(vendaId)
+      return
+    }
 
     try {
       await marcarVendaPaga(linhaVenda, forma)
@@ -672,19 +1090,22 @@ function escolherForma(linhaVenda) {
     } catch (err) {
       console.error(err)
       $q.notify({ type: 'negative', message: 'Falha ao marcar a venda como paga.' })
+    } finally {
+      finalizarAcaoVenda(vendaId)
     }
   })
+    .onCancel(() => finalizarAcaoVenda(vendaId))
 }
 </script>
-
 <style scoped>
 .contas-page {
   position: relative;
-  min-height: 100vh;
-  padding: 24px 24px 32px;
-  background: linear-gradient(160deg, #f7f6f3 0%, #ede9df 100%);
+  min-height: 100%;
+  padding: 0;
+  background: var(--brand-background);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .contas-page__bg {
@@ -692,8 +1113,8 @@ function escolherForma(linhaVenda) {
   inset: 0;
   pointer-events: none;
   background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-  opacity: 0.7;
+  background-size: 28px 28px;
+  opacity: 0.4;
 }
 
 .contas-page__wrapper {
@@ -704,6 +1125,9 @@ function escolherForma(linhaVenda) {
   flex-direction: column;
   align-items: stretch;
   gap: 20px;
+  min-height: 0;
+  padding: 24px 24px 32px;
+  box-sizing: border-box;
 }
 
 .contas-page__grid {
@@ -711,6 +1135,8 @@ function escolherForma(linhaVenda) {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
+  min-height: 0;
+  row-gap: 0;
 }
 
 .mobile-toggle {
@@ -734,20 +1160,17 @@ function escolherForma(linhaVenda) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 16px 32px rgba(30, 30, 45, 0.08);
-  backdrop-filter: blur(6px);
-  padding: 20px 22px;
+  border-radius: 18px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  box-shadow: none;
+  padding: 16px 18px;
   position: relative;
 }
 
-.painel--clientes {
-  min-height: 620px;
-}
-
+.painel--clientes,
 .painel--extrato {
-  min-height: 620px;
+  min-height: 0;
 }
 
 .painel__header {
@@ -757,8 +1180,9 @@ function escolherForma(linhaVenda) {
 }
 
 .painel__buscar :deep(.q-field__control) {
-  background: rgba(247, 247, 247, 0.9);
-  border-radius: 14px;
+  background: var(--brand-surface);
+  border-radius: 12px;
+  border: 1px solid var(--brand-border);
 }
 
 .painel__filtros {
@@ -768,21 +1192,20 @@ function escolherForma(linhaVenda) {
 }
 
 .filtro-btn {
-  border: none;
+  border: 1px solid var(--brand-border);
   border-radius: 999px;
-  padding: 6px 16px;
+  padding: 6px 14px;
   font-weight: 600;
   font-size: 13px;
-  background: #f1f1f1;
-  color: #6a6a6a;
+  background: var(--brand-surface-soft);
+  color: var(--brand-text-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .filtro-btn--active {
-  background: #ffd54f;
-  color: #3b2f00;
-  box-shadow: 0 6px 16px rgba(191, 139, 0, 0.3);
+  background: var(--brand-primary);
+  color: var(--brand-text-strong);
+  border-color: var(--brand-primary);
 }
 
 .painel__lista {
@@ -796,22 +1219,27 @@ function escolherForma(linhaVenda) {
   height: 100%;
 }
 
+.painel__scroll--native {
+  overflow-y: auto;
+}
+
 .painel__vazio {
   padding: 32px 0;
   text-align: center;
-  color: #9e9e9e;
+  color: var(--brand-text-muted);
 }
 
 .cliente-item {
-  border-radius: 16px;
+  border-radius: 12px;
   margin: 4px 0;
-  padding: 12px 16px;
-  transition: all 0.2s ease;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .cliente-item--ativo {
-  background: #fff7dc;
-  box-shadow: inset 0 0 0 2px #ffca28;
+  background: color-mix(in srgb, var(--brand-primary) 12%, white);
+  border-color: var(--brand-primary);
 }
 
 .cliente-item__nome {
@@ -863,7 +1291,7 @@ function escolherForma(linhaVenda) {
 .painel__cliente {
   font-size: 22px;
   font-weight: 700;
-  color: #373743;
+  color: var(--brand-text-strong);
 }
 
 .painel__saldo {
@@ -872,35 +1300,69 @@ function escolherForma(linhaVenda) {
   margin-top: 6px;
 }
 
+.painel__acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  row-gap: 8px;
+  flex-wrap: wrap;
+}
+
+.painel__reconciliar {
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 8px 14px;
+}
 .painel__registrar {
   font-weight: 700;
-  border-radius: 14px;
-  padding: 10px 18px;
-  background: linear-gradient(115deg, #ffca28, #ffb300);
-  color: #3b2500;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: var(--brand-primary);
+  color: var(--brand-text-strong);
+  box-shadow: none;
+}
+.painel__reconciliar.is-mobile,
+.painel__registrar.is-mobile {
+  padding: 6px;
+  min-width: 40px;
+}
+.painel__icon-btn {
+  border-radius: 12px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-surface-soft);
+}
+
+.painel__busca-extrato {
+  margin-top: 12px;
+}
+
+.painel__busca-input :deep(.q-field__control) {
+  border-radius: 12px;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
 }
 
 .painel__tabs {
   display: flex;
-  gap: 12px;
-  margin: 22px 0 12px;
+  gap: 10px;
+  margin: 16px 0 10px;
+  flex-wrap: wrap;
 }
 
 .aba-btn {
-  border: none;
-  background: #f3f3f4;
-  color: #6a6a7b;
+  border: 1px solid var(--aba-color, var(--brand-border));
+  background: var(--brand-surface-soft);
+  color: var(--brand-text-muted);
   font-weight: 600;
-  padding: 6px 18px;
+  padding: 5px 14px;
   border-radius: 999px;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .aba-btn--ativa {
-  background: #ffd54f;
-  color: #3b2f00;
-  box-shadow: 0 6px 16px rgba(191, 139, 0, 0.32);
+  background: var(--aba-color, var(--brand-primary));
+  color: #ffffff;
+  border-color: var(--aba-color, var(--brand-primary));
 }
 
 .painel__conteudo {
@@ -918,7 +1380,7 @@ function escolherForma(linhaVenda) {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #707078;
+  color: var(--brand-text-muted);
   padding: 48px 16px;
 }
 
@@ -930,23 +1392,27 @@ function escolherForma(linhaVenda) {
 }
 
 .extrato-card {
-  background: rgba(252, 252, 252, 0.92);
-  border-radius: 18px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
-  box-shadow: 0 12px 24px rgba(32, 32, 40, 0.08);
+  position: relative;
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  padding: 12px 14px 12px 20px;
+  margin-bottom: 8px;
+  box-shadow: none;
+  cursor: pointer;
 }
 
 .extrato-card__main {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
 }
 
 .extrato-card__icone {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -955,27 +1421,60 @@ function escolherForma(linhaVenda) {
 }
 
 .extrato-card__icone--pagamento {
-  background: linear-gradient(135deg, #2196f3, #1976d2);
+  background: #1e88e5;
 }
 
 .extrato-card__icone--pago {
-  background: linear-gradient(135deg, #43a047, #2e7d32);
+  background: #2e7d32;
 }
 
 .extrato-card__icone--pendente {
-  background: linear-gradient(135deg, #ffb74d, #fb8c00);
+  background: #f9a825;
 }
 
 .extrato-card__icone--cancelado {
-  background: linear-gradient(135deg, #9e9e9e, #757575);
+  background: #757575;
 }
 
+
+.extrato-card__accent {
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--accent, var(--brand-primary));
+}
+
+.extrato-card__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.extrato-card__btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.extrato-card__icon-btn {
+  border: 1px solid var(--brand-border);
+}
 .extrato-card__icone--estornado {
-  background: linear-gradient(135deg, #b0bec5, #78909c);
+  background: #90a4ae;
 }
 
 .extrato-card__info {
-  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 4px 14px;
+  align-items: center;
+  min-width: 0;
 }
 
 .extrato-card__titulo {
@@ -985,16 +1484,24 @@ function escolherForma(linhaVenda) {
 }
 
 .extrato-card__descricao {
+  grid-column: 1 / -1;
   color: #737384;
   font-size: 13px;
-  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .extrato-card__meta {
-  margin-top: 8px;
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
+  gap: 6px;
+  text-align: right;
 }
 
 .extrato-card__extra {
@@ -1006,11 +1513,18 @@ function escolherForma(linhaVenda) {
   color: #6b6b80;
 }
 
+.extrato-card__badge {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .extrato-card__valor {
   font-weight: 700;
-  font-size: 15px;
-  min-width: 120px;
+  font-size: 18px;
   text-align: right;
+  line-height: 1.2;
 }
 
 .extrato-card__valor--negativo {
@@ -1036,18 +1550,25 @@ function escolherForma(linhaVenda) {
 
 .extrato-card__acoes {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
 }
 
-@media (max-width: 1023px) {
+@media (min-width: 1024px) {
   .contas-page {
-    padding: 16px;
+    overflow: hidden;
   }
-
+}
+@media (max-width: 1023px) {
   .contas-page__wrapper {
     gap: 12px;
+    padding: 14px;
+  }
+
+  .contas-page__grid {
+    row-gap: 12px;
   }
 
   .mobile-toggle {
@@ -1060,25 +1581,27 @@ function escolherForma(linhaVenda) {
   }
 
   .painel {
-    padding: 18px 18px 20px;
-    height: auto;
-  }
-
-  .painel--clientes,
-  .painel--extrato {
-    min-height: 60vh;
-  }
-
-  .painel__lista {
-    max-height: 48vh;
-  }
-
-  .painel__scroll {
+    padding: 16px;
     height: 100%;
   }
 
-  .painel__registrar {
+  .painel__lista {
+    max-height: none;
+  }
+
+  .painel__scroll--native {
+    height: auto;
+  }
+
+  .painel__acoes {
     width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .painel__reconciliar,
+  .painel__registrar {
     justify-content: center;
   }
 
@@ -1102,11 +1625,87 @@ function escolherForma(linhaVenda) {
   }
 
   .extrato-card__main {
-    flex-direction: column;
+    grid-template-columns: auto 1fr;
+  }
+
+  .extrato-card__info {
+    grid-template-columns: 1fr;
+  }
+
+  .extrato-card__meta {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .extrato-card__side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 0;
   }
 
   .extrato-card__valor {
     text-align: left;
   }
 }
+
+.text-brand {
+  color: var(--brand-primary);
+}
+
+.mobile-toggle__buttons :deep(.q-btn) {
+  color: var(--brand-text-muted);
+}
+
+.mobile-toggle__buttons :deep(.q-btn--active) {
+  background: var(--brand-primary) !important;
+  color: var(--brand-text-strong) !important;
+  border-color: var(--brand-primary) !important;
+}
+
+.painel__reconciliar {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background: transparent;
+}
+
+.painel__registrar {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
+  color: var(--brand-text-strong);
+}
+
+.painel__icon-btn {
+  color: var(--brand-text-muted);
+}
+
+.painel__icon-btn.is-active {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 14%, white);
+}
+
+.painel__busca-input :deep(.q-field--focused .q-field__control),
+.painel__buscar :deep(.q-field--focused .q-field__control) {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+
+.painel__busca-input :deep(.q-field--focused .q-field__control:before),
+.painel__busca-input :deep(.q-field--focused .q-field__control:after),
+.painel__buscar :deep(.q-field--focused .q-field__control:before),
+.painel__buscar :deep(.q-field--focused .q-field__control:after) {
+  border-color: var(--brand-primary);
+}
+
+.extrato-card__btn--brand {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
 </style>
+
+
+

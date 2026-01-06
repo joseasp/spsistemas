@@ -1,5 +1,20 @@
 import { supabase } from 'src/supabaseClient'
 
+function normalizeTextoUpper(value) {
+  if (value === null || value === undefined) return null
+  const texto = String(value)
+  return texto ? texto.toUpperCase() : null
+}
+
+function normalizeProdutoPayload(payload) {
+  if (!payload) return payload
+  return {
+    ...payload,
+    nome: normalizeTextoUpper(payload.nome),
+    categoria: normalizeTextoUpper(payload.categoria),
+  }
+}
+
 function normalizeError(error, fallbackMessage) {
   return {
     message: error?.message || fallbackMessage,
@@ -16,14 +31,14 @@ export async function fetchAll() {
 }
 
 export async function create(payload) {
-  const { error } = await supabase.from('produtos').insert([payload])
+  const { error } = await supabase.from('produtos').insert([normalizeProdutoPayload(payload)])
   if (error) {
     throw normalizeError(error, 'Erro ao criar produto.')
   }
 }
 
 export async function update({ id, ...patch }) {
-  const { error } = await supabase.from('produtos').update(patch).eq('id', id)
+  const { error } = await supabase.from('produtos').update(normalizeProdutoPayload(patch)).eq('id', id)
   if (error) {
     throw normalizeError(error, 'Erro ao atualizar produto.')
   }
